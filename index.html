@@ -2,624 +2,421 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Memorial Descritivo SIGEF</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qualificador CRCO</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231d4f91'/%3E%3Ctext x='16' y='21' font-family='Arial' font-size='13' font-weight='700' fill='white' text-anchor='middle'%3EQR%3C/text%3E%3C/svg%3E">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: Arial, sans-serif;
-  background: #f0f2f5;
-  min-height: 100vh;
-  padding: 28px 16px;
-  color: #1a1a2e;
+/* ===== Tokens de design (1 cor primária, neutros, semânticas só para status) ===== */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --surface-2:#f7f9fb; --border:#d6dce4; --border-strong:#9aa6b6;
+  --text:#17202e; --muted:#4a5568;
+  --primary:#1d4f91; --primary-hover:#173f74; --primary-soft:#e9f0fa;
+  --ok:#13703f; --ok-soft:#e3f4ea; --warn:#8a5200; --warn-soft:#fff3dc; --err:#b42318; --err-soft:#fdeceb;
+  --dark:#10151d; --dark-2:#1b2330; --dark-3:#283243;
+  --r-sm:4px; --r-md:8px; --r-lg:12px;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.1);
 }
-.wrap { max-width: 860px; margin: 0 auto; }
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{font:14px/1.5 var(--font);color:var(--text);background:var(--bg);display:flex;flex-direction:column;min-height:100vh}
+body.noscroll{overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid #2f6fd0;outline-offset:2px}
+.skip{position:absolute;left:-999px;top:8px}.skip:focus{left:8px;background:#fff;padding:8px;z-index:9999}
+input,select,textarea{border:1px solid var(--border-strong);border-radius:var(--r-sm);padding:6px 8px;background:#fff;min-height:36px;width:100%}
+input[type=checkbox]{width:18px;height:18px;min-height:0;accent-color:var(--primary)}
+textarea{resize:vertical}
+h1,h2,h3{line-height:1.25}
+.muted{color:var(--muted)}
+small{font-size:12px}
 
-.hdr {
-  background: #1a3a5c;
-  color: #fff;
-  border-radius: 12px 12px 0 0;
-  padding: 24px 32px;
-}
-.hdr h1 { font-size: 20px; font-weight: 700; }
-.hdr p  { font-size: 12px; color: #a8c4e0; margin-top: 5px; }
+/* ===== Botões ===== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:6px 14px;border-radius:var(--r-md);border:1px solid var(--border-strong);background:#fff;cursor:pointer;font-weight:600;font-size:13px;text-decoration:none;color:var(--text);white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:hover{background:var(--primary-hover)}
+.btn.danger{color:var(--err);border-color:#e4a59f}
+.btn.sm{min-height:30px;padding:2px 10px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.link{border:0;background:none;color:var(--primary);text-decoration:underline;padding:0 4px;min-height:0}
 
-.card {
-  background: #fff;
-  border-radius: 0 0 12px 12px;
-  padding: 28px 32px;
-  box-shadow: 0 4px 20px rgba(0,0,0,.08);
-}
+/* ===== Cabeçalho ===== */
+.app-hdr{display:flex;align-items:flex-end;gap:16px;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.brand{display:flex;gap:8px;align-items:center;align-self:center}
+.logo{width:34px;height:34px;border-radius:var(--r-md);background:var(--primary);color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px}
+.brand-t{font-weight:700;font-size:15px}.brand-s{font-size:12px;color:var(--muted)}
+.meta{display:flex;gap:12px;flex-wrap:wrap}
+.meta label{display:flex;flex-direction:column;font-size:12px;font-weight:600;color:var(--muted);gap:2px}
+.meta input,.meta select{width:auto;min-width:130px}
+.hdr-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.menu{position:relative}
+.menu summary{list-style:none}
+.menu summary::-webkit-details-marker{display:none}
+.menu-pop{position:absolute;right:0;top:40px;background:#fff;border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 8px 24px rgba(0,0,0,.15);padding:6px;display:flex;flex-direction:column;z-index:50;min-width:220px}
+.menu-pop a{padding:8px 10px;border-radius:var(--r-sm);color:var(--text);text-decoration:none}
+.menu-pop a:hover{background:var(--surface-2)}
 
-.sec {
-  font-size: 11px; font-weight: 700; color: #1a3a5c;
-  text-transform: uppercase; letter-spacing: .8px;
-  margin-bottom: 14px; padding-bottom: 7px;
-  border-bottom: 2px solid #e8eef5;
-}
+/* ===== Etapas ===== */
+.steps{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;gap:4px;overflow-x:auto}
+.steps button{border:0;background:none;padding:12px 14px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.steps button[aria-selected=true]{color:var(--primary);border-bottom-color:var(--primary)}
+.steps .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);font-size:11px;margin-right:6px}
+.steps button[aria-selected=true] .n{background:var(--primary);color:#fff;border-color:var(--primary)}
+.banner{display:flex;gap:12px;align-items:center;padding:8px 16px;background:var(--warn-soft);color:var(--warn);border-bottom:1px solid #f1d29b;font-size:13px;flex-wrap:wrap}
+main{flex:1;min-height:0;display:flex;flex-direction:column}
+.step{flex:1;min-height:0;padding:16px;display:none;overflow:auto}
+.step.on{display:block}
+.actionbar{display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--surface);border-top:1px solid var(--border)}
+.actionbar #stepHint{color:var(--muted);font-size:13px}
+.actionbar .btn.primary{margin-left:auto}
 
-/* Upload boxes */
-.uploads { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 22px; }
-.upbox {
-  border: 2px dashed #c5d3e0;
-  border-radius: 10px;
-  padding: 18px 10px;
-  text-align: center;
-  cursor: pointer;
-  background: #f8fafc;
-  position: relative;
-  transition: all .15s;
-}
-.upbox:hover { border-color: #1a3a5c; background: #eef4fb; }
-.upbox.ok   { border-color: #22a55a; background: #f0fdf5; border-style: solid; }
-.upbox input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-.upbox .ico { font-size: 26px; margin-bottom: 6px; }
-.upbox .lbl { font-size: 12px; font-weight: 700; color: #374151; }
-.upbox .sub { font-size: 11px; color: #9ca3af; margin-top: 3px; }
-.upbox .fn  { font-size: 10px; color: #22a55a; font-weight: 700; margin-top: 5px; word-break: break-all; min-height: 14px; }
+/* ===== Painéis e cartões ===== */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:0}
+.panel-h{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.panel-h h2{font-size:14px}
+.panel-b{padding:12px;overflow:auto;flex:1;min-height:0}
+.count{font:12px var(--mono);color:var(--muted)}
+section.card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:16px;box-shadow:var(--shadow)}
+section.card>h2{font-size:16px;margin-bottom:4px}
+section.card>p.muted{margin-bottom:12px;font-size:13px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.empty{padding:32px 16px;text-align:center;color:var(--muted);grid-column:1/-1}
+.okt{color:var(--ok);font-weight:700}.errt{color:var(--err);font-weight:700}.warnt{color:var(--warn);font-weight:700}
 
-/* Botões */
-.btn {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  width: 100%; padding: 13px;
-  border: none; border-radius: 9px;
-  font-size: 14px; font-weight: 700; cursor: pointer;
-  transition: all .15s;
-}
-.btn-blue  { background: #1a3a5c; color: #fff; }
-.btn-blue:hover:not(:disabled) { background: #0f2744; }
-.btn-blue:disabled { background: #9ca3af; cursor: not-allowed; }
-.btn-green { background: #22a55a; color: #fff; }
-.btn-green:hover { background: #16873f; }
+/* ===== Etapa 1: GED ===== */
+#step-ged.on{display:grid;grid-template-columns:320px 1fr;gap:16px;overflow:hidden}
+.pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;align-content:start;min-height:100%}
+.pcard{position:relative;aspect-ratio:.707;border:2px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:var(--surface-2);cursor:pointer}
+.pcard img{width:100%;height:100%;object-fit:cover;pointer-events:none}
+.pcard.sel{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
+.pcard.sel::after{content:"✓";position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700}
+.pcard.grp{opacity:.4;cursor:default;border-style:dashed}
+.pcard.drop-b{box-shadow:-5px 0 0 var(--ok)}.pcard.drop-a{box-shadow:5px 0 0 var(--ok)}
+.pnum{position:absolute;top:4px;left:4px;background:rgba(16,21,29,.85);color:#fff;font:11px var(--mono);padding:0 4px;border-radius:3px}
+.psig{position:absolute;top:24px;left:4px;font-size:12px}
+.pname{position:absolute;left:0;right:0;bottom:0;background:rgba(16,21,29,.85);color:#fff;font-size:10px;padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pzoom{position:absolute;right:4px;bottom:22px;border:0;border-radius:var(--r-sm);background:rgba(255,255,255,.95);width:30px;height:30px;cursor:pointer;opacity:0}
+.pcard:hover .pzoom,.pcard:focus-within .pzoom,.pcard:focus .pzoom{opacity:1}
+.drag{outline:3px dashed var(--primary);outline-offset:-6px;background:var(--primary-soft)}
+.dcard{border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface);margin-bottom:8px}
+.dtop{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface-2);border-bottom:1px solid var(--border);flex-wrap:wrap;border-radius:var(--r-md) var(--r-md) 0 0}
+.dcard.col .dbody{display:none}.dcard.col .dtog{transform:rotate(-90deg)}
+.dtog{border:0;background:none;cursor:pointer;width:30px;height:30px;font-size:14px;transition:transform .15s}
+.dord{width:60px!important;min-height:30px;text-align:center;font-family:var(--mono)}
+.dcat{font:600 11px var(--mono);background:var(--primary-soft);color:var(--primary);padding:2px 6px;border-radius:var(--r-sm)}
+.dname{flex:1;min-width:120px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dbody{padding:12px}
+.dfields{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.dfields label{display:flex;flex-direction:column;font-size:12px;font-weight:600;color:var(--muted);gap:2px}
+.dfields .grow{flex:1;min-width:200px}
+.strip{display:flex;gap:6px;overflow-x:auto;padding:8px;border:1px dashed var(--border-strong);border-radius:var(--r-md);min-height:76px;align-items:center}
+.strip.over{border-color:var(--ok);background:var(--ok-soft)}
+.sthumb{width:44px;height:60px;flex-shrink:0;border:1px solid var(--border);border-radius:3px;overflow:hidden;cursor:pointer;position:relative;background:#fff}
+.sthumb img{width:100%;height:100%;object-fit:cover;pointer-events:none}
+.sthumb:hover::after{content:"✕";position:absolute;inset:0;background:rgba(180,35,24,.85);color:#fff;display:grid;place-items:center;font-weight:700}
+.strip-drop{color:var(--muted);font-size:12px;padding:0 8px;white-space:nowrap}
+.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+.badge.err{background:var(--err-soft);color:var(--err)}.badge.ok{background:var(--ok-soft);color:var(--ok)}.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.selbar{display:flex;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--border);background:var(--primary-soft)}
 
-/* Status */
-.status {
-  margin-top: 12px; padding: 12px 15px;
-  border-radius: 8px; font-size: 13px; font-weight: 600;
-  display: none;
-}
-.status.info { background: #eff6ff; color: #1e40af; border: 1.5px solid #bfdbfe; display: block; }
-.status.ok   { background: #f0fdf5; color: #166534; border: 1.5px solid #bbf7d0; display: block; }
-.status.err  { background: #fef2f2; color: #991b1b; border: 1.5px solid #fecaca; display: block; }
-.status.warn { background: #fffbeb; color: #92400e; border: 1.5px solid #fde68a; display: block; }
+/* ===== Visualizador (lupa) ===== */
+.viewer{position:fixed;inset:0;background:var(--dark);z-index:500;display:flex;flex-direction:column;color:#e8ecf2}
+.vbar{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--dark-2);border-bottom:1px solid var(--dark-3);flex-wrap:wrap}
+.vbar .btn{background:var(--dark-3);border-color:#3b475b;color:#e8ecf2}
+.vbar .btn:hover{background:#334057}
+.vbar .btn[aria-pressed=true]{background:var(--primary);border-color:var(--primary)}
+.vbar .sep{width:1px;height:20px;background:#3b475b;margin:0 4px}
+.vtitle{font-weight:700;margin-right:8px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vcount{font:12px var(--mono);background:var(--dark-3);padding:2px 8px;border-radius:var(--r-sm)}
+.vbody{flex:1;display:flex;min-height:0}
+.vpane{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.vpane+.vpane{border-left:2px solid var(--dark-3)}
+.vpane img{max-width:96%;max-height:96%;object-fit:contain;user-select:none;cursor:grab;box-shadow:0 8px 32px rgba(0,0,0,.5);background:#fff}
+.vpane img.grabbing{cursor:grabbing}
+.vtag{position:absolute;top:10px;left:10px;background:var(--primary);color:#fff;font:600 11px var(--mono);padding:4px 8px;border-radius:var(--r-sm);z-index:2}
+.vtext{width:420px;background:var(--dark-2);border-left:1px solid var(--dark-3);display:flex;flex-direction:column}
+.vtext .row{padding:8px;border-bottom:1px solid var(--dark-3)}
+.vtext pre{flex:1;overflow:auto;padding:12px;white-space:pre-wrap;font:13px/1.6 var(--mono);user-select:text}
+.vnav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;border:1px solid #3b475b;background:rgba(27,35,48,.9);color:#fff;font-size:24px;cursor:pointer;z-index:3}
+.vnav:disabled{display:none}
+.vnav.l{left:16px}.vnav.r{right:16px}
+.ruler{position:absolute;left:0;right:0;height:28px;background:rgba(251,191,36,.2);border-top:1px solid #f5b400;border-bottom:1px solid #f5b400;pointer-events:none;z-index:2}
 
-.divider { height: 1px; background: #e8eef5; margin: 22px 0; }
+/* ===== Etapa 2: Conferência ===== */
+#step-conf.on{display:grid;grid-template-columns:minmax(380px,1fr) minmax(440px,1fr);gap:16px;overflow:hidden}
+.cimg{flex:1;min-height:240px;background:var(--dark-2);overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative;border-radius:var(--r-md)}
+.cimg img{max-width:100%;max-height:100%;cursor:grab;background:#fff}
+.ctext{height:190px;overflow:auto;white-space:pre-wrap;font:12px/1.6 var(--mono);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-md);padding:8px;user-select:text;margin-top:8px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;max-height:100px;overflow:auto}
+.chip{border:1px solid var(--border-strong);background:#fff;border-radius:999px;padding:2px 10px;font-size:12px;cursor:pointer;min-height:30px}
+.chip:hover{border-color:var(--primary);background:var(--primary-soft)}
+.chip b{color:var(--muted);font-weight:600;margin-right:4px}
+.activehint{font-size:12px;padding:6px 10px;background:var(--primary-soft);color:var(--primary);border-radius:var(--r-md);margin-top:8px}
+.grp-h{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--primary);margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.grp-h:first-child{margin-top:0}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.fld{display:flex;flex-direction:column;gap:2px}.fld.wide{grid-column:1/-1}
+.fld>label{font-size:12px;font-weight:600;color:var(--muted)}
+.isactive{border-color:var(--primary)!important;box-shadow:0 0 0 3px var(--primary-soft)!important}
+.fmeta{display:flex;gap:8px;align-items:center;font-size:11px;min-height:22px}
+.srcb{border:0;background:var(--primary-soft);color:var(--primary);border-radius:var(--r-sm);padding:1px 6px;font-size:11px;cursor:pointer;font-weight:600}
+.okc{display:flex;gap:4px;align-items:center;color:var(--muted);margin-left:auto;cursor:pointer;font-weight:600}
+.okc input{width:16px;height:16px}
+table.lt{width:100%;border-collapse:collapse;font-size:13px}
+table.lt th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:4px;border-bottom:1px solid var(--border)}
+table.lt td{padding:4px;vertical-align:top;border-bottom:1px solid var(--border)}
 
-/* Prévia */
-.prev-wrap {
-  overflow-x: auto; max-height: 300px; overflow-y: auto;
-  border: 1px solid #e5e7eb; border-radius: 8px;
-  margin-bottom: 18px;
-}
-.prev-tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
-.prev-tbl th {
-  background: #1a3a5c; color: #fff;
-  padding: 7px 8px; text-align: left;
-  position: sticky; top: 0; white-space: nowrap;
-  font-size: 11px;
-}
-.prev-tbl td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; }
-.prev-tbl tr:hover td { background: #fafafa; }
+/* ===== Etapa 3: Checklist ===== */
+.ck{display:grid;grid-template-columns:auto 1fr 240px auto;gap:8px;align-items:start;padding:10px 0;border-bottom:1px solid var(--border)}
+.ck-main{display:flex;flex-direction:column;gap:4px}
+.ck-o{font-size:12px;min-height:30px}
+.ck-act{display:flex;gap:4px}
+.seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:var(--r-md);overflow:hidden}
+.seg button{border:0;background:#fff;padding:4px 8px;font-size:12px;cursor:pointer;min-height:34px;border-right:1px solid var(--border);font-weight:600;color:var(--muted)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{color:#fff}
+.seg .s-pend[aria-pressed=true]{background:#5b6b82}.seg .s-ok[aria-pressed=true]{background:var(--ok)}
+.seg .s-exig[aria-pressed=true]{background:var(--err)}.seg .s-na[aria-pressed=true]{background:#7a8699}
 
-/* Instrução */
-.instr {
-  background: #f8fafc; border: 1px solid #e2e8f0;
-  border-radius: 8px; padding: 14px 16px; margin-bottom: 16px;
-}
-.instr p { font-size: 12px; color: #374151; line-height: 1.7; }
-.instr strong { color: #1a3a5c; }
+/* ===== Etapa 4: Incorporação ===== */
+.subnav{position:sticky;top:-16px;background:var(--bg);z-index:6;display:flex;gap:8px;padding:8px 0;margin-bottom:8px;flex-wrap:wrap}
+.tbl-wrap{overflow:auto;border:1px solid var(--border);border-radius:var(--r-md);max-height:62vh}
+table.q{border-collapse:separate;border-spacing:0;font-size:12px;min-width:100%}
+table.q th{position:sticky;top:0;background:#24324a;color:#fff;font-weight:600;padding:4px 6px;border-right:1px solid #3a4a66;border-bottom:1px solid #3a4a66;white-space:pre-line;text-align:center;z-index:2;font-size:11px;line-height:1.2}
+table.q thead tr:first-child th{height:26px}
+table.q thead tr:nth-child(2) th{top:26px;background:#2f3f5c}
+table.q td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:2px;background:#fff}
+table.q td.c{background:var(--surface-2);text-align:right;font-family:var(--mono);padding:4px 6px;white-space:nowrap}
+table.q td.c.k{background:#eef3fb;font-weight:700}
+table.q input{min-height:28px;padding:2px 6px;width:86px;text-align:right;font-family:var(--mono);font-size:12px;border-color:var(--border)}
+table.q input.t{text-align:left;width:120px;font-family:var(--font)}
+table.q input.w{width:240px;text-align:left;font-family:var(--font)}
+table.q input[type=checkbox]{width:16px;height:16px;min-height:0}
+table.q tfoot td{font-weight:700;background:#eef2f7;position:sticky;bottom:0;font-family:var(--mono);text-align:right;padding:4px 6px}
+.blk{font-size:10px;font-weight:700;color:var(--primary);margin-right:4px}
+.mis{background:var(--err-soft)!important;box-shadow:inset 0 0 0 2px var(--err)}
+.mat{background:var(--ok-soft)!important}
+.aud{list-style:none;display:flex;flex-direction:column;gap:6px}
+.aud li{display:flex;gap:8px;padding:8px 10px;border-radius:var(--r-md);font-size:13px;align-items:flex-start}
+.aud li::before{font-weight:800;width:16px;flex-shrink:0}
+.aud .ok{background:var(--ok-soft);color:var(--ok)}.aud .ok::before{content:"✓"}
+.aud .warn{background:var(--warn-soft);color:var(--warn)}.aud .warn::before{content:"!"}
+.aud .err{background:var(--err-soft);color:var(--err)}.aud .err::before{content:"✕"}
+.q3{display:grid;grid-template-columns:1fr 180px;gap:6px 16px;align-items:center;max-width:760px}
+.q3 .lbl{font-size:13px}.q3 .val{font-family:var(--mono);text-align:right;font-weight:600}
+.q3 .tot{font-weight:800;border-top:1px solid var(--border);padding-top:6px}
+.minuta{font-family:Arial,Helvetica,sans-serif;font-size:12pt;line-height:1.5;text-align:justify;background:#fff;border:1px solid var(--border);border-radius:var(--r-md);padding:24px;max-height:55vh;overflow:auto;color:#000}
+.minuta p{margin-bottom:10px}.minuta hr{border:0;border-top:1px dashed #999;margin:14px 0}
+.ph{color:var(--err);font-weight:700}
 
-/* Progress bar */
-.progress-bar {
-  width: 100%; height: 6px; background: #e5e7eb;
-  border-radius: 3px; overflow: hidden; margin-top: 8px;
-  display: none;
-}
-.progress-bar-inner {
-  height: 100%; background: #1a3a5c;
-  border-radius: 3px; transition: width .3s;
-  width: 0%;
-}
+/* ===== Etapa 5: Nota ===== */
+.ex{display:grid;grid-template-columns:32px 1fr 260px auto;gap:8px;align-items:start;padding:10px 0;border-bottom:1px solid var(--border)}
+.ex .n{font:700 14px var(--mono);color:var(--primary);padding-top:8px}
+.ex .ref{font-size:11px;color:var(--muted)}
+#notaTxt{font-family:var(--mono);font-size:13px;min-height:320px}
+
+/* ===== Sobreposições ===== */
+.toasts{position:fixed;right:16px;bottom:72px;display:flex;flex-direction:column;gap:8px;z-index:900}
+.toast{background:var(--dark-2);color:#fff;padding:10px 14px;border-radius:var(--r-md);font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.25);max-width:440px;border-left:4px solid #3fb27f}
+.toast.err{border-left-color:#f97066}
+.busy{position:fixed;inset:0;background:rgba(16,21,29,.6);display:grid;place-items:center;z-index:800}
+.busy-box{background:#fff;border-radius:var(--r-lg);padding:24px 32px;min-width:320px;text-align:center}
+.bar{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;margin-top:12px}
+.bar i{display:block;height:100%;background:var(--primary);width:0;transition:width .2s}
+dialog{border:0;border-radius:var(--r-lg);padding:24px;width:min(500px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.3);margin:auto}
+dialog::backdrop{background:rgba(16,21,29,.55)}
+dialog h2{font-size:16px;margin-bottom:4px}
+dialog label{display:flex;flex-direction:column;font-size:12px;font-weight:600;color:var(--muted);gap:2px;margin-top:12px}
+.dlg-act{display:flex;flex-direction:row-reverse;gap:8px;margin-top:20px}
+.qexig{position:fixed;left:24px;top:96px;width:420px;background:#fff;color:var(--text);border-radius:var(--r-lg);box-shadow:0 16px 48px rgba(0,0,0,.45);z-index:650;display:flex;flex-direction:column}
+.qexig-h{padding:8px 12px;background:var(--surface-2);border-bottom:1px solid var(--border);cursor:move;display:flex;align-items:center;font-weight:700;border-radius:var(--r-lg) var(--r-lg) 0 0;user-select:none}
+.qexig-b{padding:12px;display:flex;flex-direction:column;gap:8px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:980px){#step-ged.on,#step-conf.on{grid-template-columns:1fr;overflow:auto}.ck,.ex{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="hdr">
-    <h1>🗺️ Memorial Descritivo SIGEF</h1>
-    <p>Sobe o PDF + CSVs → gera .docx → abre no Word → Ctrl+A → Ctrl+C → cola no Tri7</p>
+<a class="skip" href="#main">Pular para o conteúdo</a>
+
+<header class="app-hdr">
+  <div class="brand"><span class="logo" aria-hidden="true">QR</span>
+    <div><div class="brand-t">Qualificador CRCO</div><div class="brand-s">Registro de Imóveis · Cidade Ocidental/GO · v1.0.0</div></div></div>
+  <div class="meta">
+    <label for="mProt">Protocolo<input id="mProt" data-bind="m:protocolo" autocomplete="off"></label>
+    <label for="mTipo">Tipo de ato<select id="mTipo" data-bind="m:tipoAto"></select></label>
+    <label for="mPren">Prenotação<input id="mPren" type="date" data-bind="m:dataPrenotacao"></label>
+    <label for="mQual">Qualificador<input id="mQual" data-bind="m:qualificador" autocomplete="off"></label>
   </div>
-  <div class="card">
+  <div class="hdr-actions">
+    <button class="btn" id="btnAbrir" type="button">Abrir análise</button>
+    <input type="file" id="fileProj" accept=".gori,.json" hidden>
+    <button class="btn" id="btnSalvar" type="button" title="Ctrl+S">Salvar análise</button>
+    <details class="menu"><summary class="btn">Validadores ▾</summary>
+      <div class="menu-pop"><a href="https://validar.iti.gov.br/" target="_blank" rel="noopener">Validar assinatura (ITI)</a><a href="https://assina.ufsc.br/verificador/" target="_blank" rel="noopener">Verificador UFSC</a><a href="https://www.sinduscongoias.com.br/index.php/cub-custo-unitario-basico" target="_blank" rel="noopener">CUB Sinduscon-GO</a></div>
+    </details>
+  </div>
+</header>
 
-    <div class="sec">① Carregar arquivos do SIGEF</div>
-    <div class="uploads">
+<nav class="steps" id="steps" role="tablist" aria-label="Etapas da qualificação"></nav>
+<div class="banner" id="avisoVersao" hidden role="alert"></div>
+<div class="banner" id="libWarn" hidden>Bibliotecas de PDF não carregaram (falta a pasta lib?). Imagens funcionam; leitura de PDF e exportação ZIP ficam indisponíveis.</div>
+<div class="banner" id="restoreBar" hidden><span id="restoreTxt"></span><button class="btn sm" id="btnRestore" type="button">Restaurar</button><button class="btn sm" id="btnDiscard" type="button">Descartar</button></div>
 
-      <div class="upbox" id="boxPdf">
-        <input type="file" accept=".pdf" onchange="onFile('pdf',this)">
-        <div class="ico">📄</div>
-        <div class="lbl">PDF do SIGEF</div>
-        <div class="sub">Memorial Descritivo</div>
-        <div class="fn" id="fnPdf"></div>
-      </div>
-
-      <div class="upbox" id="boxV">
-        <input type="file" accept=".csv" onchange="onFile('v',this)">
-        <div class="ico">📍</div>
-        <div class="lbl">CSV Vértices</div>
-        <div class="sub">csv-vértice.csv</div>
-        <div class="fn" id="fnV"></div>
-      </div>
-
-      <div class="upbox" id="boxL">
-        <input type="file" accept=".csv" onchange="onFile('l',this)">
-        <div class="ico">🔲</div>
-        <div class="lbl">CSV Limites</div>
-        <div class="sub">csv-limite.csv</div>
-        <div class="fn" id="fnL"></div>
-      </div>
-
+<main id="main">
+  <!-- 1. DOCUMENTOS -->
+  <section class="step" id="step-ged" aria-label="Documentos">
+    <div class="panel" id="pagesPanel">
+      <div class="panel-h"><h2>Páginas</h2><span class="count" id="pgCount">0</span>
+        <div class="row" style="margin-left:auto"><button class="btn sm" id="btnImport" type="button" title="Alt+I">+ Importar</button><input type="file" id="fileIn" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple hidden></div></div>
+      <div class="panel-b dropzone" id="pagesZone"><div class="pgrid" id="pagesGrid"></div></div>
+      <div class="selbar" id="selBar" hidden><span id="selTxt"></span><button class="btn sm primary" id="btnGroup" type="button" title="Alt+A">Agrupar em documento</button><button class="btn sm" id="btnSelAll" type="button">Sel. tudo</button><button class="btn sm" id="btnClearSel" type="button">Limpar</button></div>
     </div>
-
-    <button class="btn btn-blue" id="btnProc" onclick="processar()" disabled>
-      ⚙️ Processar arquivos
-    </button>
-    <div class="progress-bar" id="progBar"><div class="progress-bar-inner" id="progInner"></div></div>
-    <div class="status" id="status"></div>
-
-    <div id="resultArea" style="display:none;">
-      <div class="divider"></div>
-      <div class="sec">② Prévia — <span id="totalV">0</span> vértices</div>
-      <div class="prev-wrap">
-        <table class="prev-tbl" id="prevTbl"></table>
-      </div>
-
-      <div class="divider"></div>
-      <div class="sec">③ Gerar .docx para o Tri7</div>
-
-      <div class="instr">
-        <p>
-          <strong>Como inserir no Tri7:</strong><br>
-          1. Clique em <strong>"Baixar .docx"</strong> abaixo<br>
-          2. Abra o arquivo no <strong>Microsoft Word</strong><br>
-          3. Pressione <strong>Ctrl+A</strong> (selecionar tudo) e depois <strong>Ctrl+C</strong> (copiar)<br>
-          4. No Tri7, posicione o cursor e cole com <strong>Ctrl+V</strong>
-        </p>
-      </div>
-
-      <button class="btn btn-green" onclick="baixarDocx()">
-        ⬇️ Baixar .docx
-      </button>
+    <div class="panel">
+      <div class="panel-h"><h2>Documentos do GED</h2><span class="count" id="docCount">0</span>
+        <div class="row" style="margin-left:auto"><button class="btn sm" id="btnToggleAll" type="button">Abrir todos</button><button class="btn sm" id="btnZip" type="button" disabled>Baixar ZIP do GED</button><button class="btn sm danger" id="btnClearAll" type="button">Limpar tudo</button></div></div>
+      <div class="panel-b dropzone" id="docsList"></div>
     </div>
+  </section>
 
+  <!-- 2. CONFERÊNCIA -->
+  <section class="step" id="step-conf" aria-label="Conferência">
+    <div class="panel">
+      <div class="panel-h"><h2>Documento</h2>
+        <select id="cDoc" aria-label="Documento em exibição" style="width:auto;max-width:260px"></select>
+        <div class="row" style="margin-left:auto"><button class="btn sm" id="cPrev" type="button" aria-label="Página anterior">‹</button><span class="count" id="cCount">–</span><button class="btn sm" id="cNext" type="button" aria-label="Próxima página">›</button><button class="btn sm" id="cZoom" type="button">Lupa</button></div></div>
+      <div class="panel-b" style="display:flex;flex-direction:column">
+        <div class="cimg" id="cImgBox"><img id="cImg" alt="Página do documento selecionado" draggable="false"></div>
+        <div class="row" style="margin-top:8px"><button class="btn sm" id="cOcr" type="button">Ler esta página com OCR</button><button class="btn sm" id="cOcrAll" type="button">OCR do documento</button><button class="btn sm primary" id="cUse" type="button">Inserir texto selecionado no campo ativo →</button></div>
+        <div class="ctext" id="cText" tabindex="0" aria-label="Texto da página"></div>
+        <div class="chips" id="cChips" aria-label="Dados detectados na página"></div>
+        <div class="activehint" id="cActive">Clique num campo à direita; depois selecione o trecho no texto (ou clique num dado detectado) para preencher.</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h2>Ficha de qualificação</h2><span class="count" id="confProg"></span></div>
+      <div class="panel-b" id="confForm"></div>
+    </div>
+  </section>
+
+  <!-- 3. CHECKLIST -->
+  <section class="step" id="step-check" aria-label="Checklist">
+    <section class="card">
+      <h2>Checklist — <span id="ckTipo"></span></h2>
+      <p class="muted" id="ckResumo"></p>
+      <div class="row" style="margin-bottom:8px">
+        <button class="btn" id="ckLoad" type="button">Carregar modelo do tipo de ato</button>
+        <button class="btn" id="ckAdd" type="button">+ Adicionar item</button>
+        <button class="btn" id="ckSave" type="button">Salvar como meu modelo</button>
+        <button class="btn link" id="ckReset" type="button">Restaurar modelo padrão</button>
+      </div>
+      <div id="ckList"></div>
+    </section>
+  </section>
+
+  <!-- 4. INCORPORAÇÃO -->
+  <section class="step" id="step-inc" aria-label="Incorporação">
+    <nav class="subnav" aria-label="Seções da incorporação"><a class="btn sm" href="#incCfgCard">Configuração</a><a class="btn sm" href="#q1Card">Quadro I</a><a class="btn sm" href="#q2Card">Quadro II</a><a class="btn sm" href="#q3Card">Quadro III</a><a class="btn sm" href="#ivbCard">IV-B e auditoria</a><a class="btn sm" href="#minCard">Minuta</a></nav>
+    <section class="card" id="incCfgCard"><h2>Configuração do empreendimento</h2><p class="muted">Defina pavimentos e numeração. "Qtd. idênticos" segue a coluna de pavimentos idênticos do Quadro I da NBR.</p><div id="incCfg"></div></section>
+    <section class="card" id="q1Card"><h2>Quadro I — áreas por pavimento</h2><p class="muted">Lance os valores de <b>um</b> pavimento de cada tipo; os totais multiplicam pela quantidade. Pode colar do Excel (Ctrl+V numa célula).</p><div class="tbl-wrap"><table class="q" id="tQ1"></table></div></section>
+    <section class="card" id="q2Card"><h2>Quadro II — áreas das unidades</h2><p class="muted">Lance as áreas de cada unidade. O coeficiente (31) é calculado; se o quadro do RT trouxer o seu, lance em "Coef. do RT" para conferir.</p>
+      <div class="row" style="margin-bottom:8px;align-items:flex-end">
+        <label class="fld" style="width:200px"><span style="font-size:12px;font-weight:600;color:var(--muted)">Ação em lote: campo</span><select id="bField"><option value="v20">CP (20)</option><option value="v21">Real dif./desc. (21)</option><option value="v22">Equiv. (22)</option><option value="v25">CP comum (25)</option><option value="v26">Real comum (26)</option><option value="v27">Equiv. comum (27)</option><option value="acess">Acessória (IV-B C)</option><option value="comp">Composição</option></select></label>
+        <label class="fld" style="flex:1;min-width:180px"><span style="font-size:12px;font-weight:600;color:var(--muted)">Valor / texto</span><input id="bVal"></label>
+        <label class="fld" style="width:190px"><span style="font-size:12px;font-weight:600;color:var(--muted)">Aplicar em</span><select id="bFilter"><option value="ALL">Todas as unidades</option><option value="EXACT">Unidade exata</option><option value="END">Terminadas em</option><option value="START">Começadas com</option><option value="PAV">Pavimento nº (ordem)</option></select></label>
+        <label class="fld" style="width:110px"><span style="font-size:12px;font-weight:600;color:var(--muted)">Critério</span><input id="bCrit"></label>
+        <label class="fld" style="width:120px"><span style="font-size:12px;font-weight:600;color:var(--muted)">Bloco</span><select id="bBloco"><option value="">Todos</option></select></label>
+        <button class="btn" id="bApply" type="button">Aplicar</button>
+      </div>
+      <div class="tbl-wrap"><table class="q" id="tQ2"></table></div></section>
+    <section class="card" id="q3Card"><h2>Quadro III — custo global e unitário</h2><p class="muted">O item 5 é calculado: área equivalente global (4.6) × CUB. Lance as demais parcelas como constam no quadro do RT.</p><div id="q3Box"></div></section>
+    <section class="card" id="ivbCard"><h2>Quadro IV-B e auditoria</h2><p class="muted">Resumo das áreas para os atos de registro (NBR 12721, 5.8.3) e conferências automáticas.</p><ul class="aud" id="audList" style="margin-bottom:16px"></ul><div class="tbl-wrap"><table class="q" id="tIVB"></table></div></section>
+    <section class="card" id="minCard"><h2>Minuta</h2><p class="muted">Campos vermelhos indicam dado faltante na ficha. Revise antes de usar.</p>
+      <div id="minCfg"></div>
+      <div class="row" style="margin:12px 0"><button class="btn primary" id="minGen" type="button">Gerar minuta</button><button class="btn" id="minCopyMae" type="button">Copiar minuta mãe</button><button class="btn" id="minCopyFil" type="button">Copiar minutas filhas</button></div>
+      <h3 style="font-size:14px;margin:8px 0">Minuta mãe (registro da incorporação)</h3><div class="minuta" id="minMae"></div>
+      <h3 style="font-size:14px;margin:16px 0 8px">Minutas filhas (unidades)</h3><div class="minuta" id="minFil"></div>
+    </section>
+  </section>
+
+  <!-- 5. NOTA -->
+  <section class="step" id="step-nota" aria-label="Nota devolutiva">
+    <section class="card"><h2>Exigências</h2><p class="muted">Itens marcados como "Exigência" no checklist entram aqui automaticamente. Edite, reordene ou adicione do catálogo.</p>
+      <div class="row" style="margin-bottom:8px"><button class="btn" id="exAdd" type="button">+ Nova exigência</button><input id="exCat" list="catExig" placeholder="Buscar no meu catálogo de exigências…" style="max-width:420px"><button class="btn" id="exCatAdd" type="button">Adicionar do catálogo</button></div>
+      <div id="exList"></div></section>
+    <section class="card"><h2>Nota devolutiva</h2><p class="muted">Gerada a partir das exigências. Pode editar livremente antes de copiar.</p>
+      <div class="row" style="margin-bottom:8px"><button class="btn" id="notaGen" type="button">Gerar / atualizar texto</button><button class="btn" id="notaCopy" type="button">Copiar nota</button></div>
+      <textarea id="notaTxt" aria-label="Texto da nota devolutiva"></textarea></section>
+  </section>
+</main>
+
+<footer class="actionbar"><span id="stepHint"></span><button class="btn primary" id="btnNext" type="button">Avançar</button></footer>
+
+<!-- Visualizador -->
+<div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Visualizador de páginas">
+  <div class="vbar">
+    <span class="vtitle" id="vTitle"></span><span class="vcount" id="vCount"></span>
+    <span style="flex:1"></span>
+    <button class="btn sm" id="vSig" type="button" hidden>🔐 Validar assinatura</button>
+    <button class="btn sm" id="vExig" type="button">Apontar exigência</button>
+    <button class="btn sm" id="vPin" type="button" aria-pressed="false">Fixar lado a lado</button>
+    <span class="sep"></span>
+    <button class="btn sm" id="vFilter" type="button" aria-pressed="false">Contraste</button>
+    <button class="btn sm" id="vRuler" type="button" aria-pressed="false">Régua</button>
+    <button class="btn sm" id="vTextBtn" type="button" aria-pressed="false">Texto</button>
+    <span class="sep"></span>
+    <button class="btn sm" id="vZo" type="button" aria-label="Diminuir zoom">−</button><button class="btn sm" id="vZr" type="button">1:1</button><button class="btn sm" id="vZi" type="button" aria-label="Aumentar zoom">+</button>
+    <button class="btn sm" id="vRl" type="button" aria-label="Girar à esquerda">↺</button><button class="btn sm" id="vRr" type="button" aria-label="Girar à direita">↻</button>
+    <button class="btn sm" id="vClose" type="button">Fechar (Esc)</button>
+  </div>
+  <div class="vbody">
+    <div class="vpane" id="vPinPane" hidden><span class="vtag" id="vPinTag"></span><img id="vPinImg" alt="Página fixada" draggable="false"></div>
+    <div class="vpane" id="vMain"><button class="vnav l" id="vPrev" type="button" aria-label="Página anterior">‹</button><div class="ruler" id="vRulerEl" hidden></div><img id="vImg" alt="Página em exibição" draggable="false"><button class="vnav r" id="vNext" type="button" aria-label="Próxima página">›</button></div>
+    <div class="vtext" id="vTextPane" hidden><div class="row"><button class="btn sm" id="vOcr" type="button">Ler com OCR</button><button class="btn sm" id="vCopyTxt" type="button">Copiar texto</button></div><pre id="vTxt"></pre></div>
   </div>
 </div>
 
-<script>
-// Configura worker do pdf.js
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+<!-- Exigência rápida -->
+<div class="qexig" id="qExig" hidden role="dialog" aria-label="Apontar exigência">
+  <div class="qexig-h" id="qExigH">Nova exigência<button class="btn sm" id="qExigX" type="button" style="margin-left:auto" aria-label="Fechar">✕</button></div>
+  <div class="qexig-b"><small class="muted" id="qExigRef"></small>
+    <label class="fld"><span style="font-size:12px;font-weight:600;color:var(--muted)">Exigência</span><textarea id="qExigT" rows="5"></textarea></label>
+    <label class="fld"><span style="font-size:12px;font-weight:600;color:var(--muted)">Fundamento</span><input id="qExigF" list="catFund"></label>
+    <div class="row" style="justify-content:flex-end"><button class="btn primary" id="qExigOk" type="button">Adicionar à nota</button></div></div>
+</div>
 
-// ── Estado ────────────────────────────────────────────────────────────────────
-let filePdf = null, fileV = null, fileL = null;
-let linhasFinais = [];
+<dialog id="dlgGroup" aria-labelledby="dgTitle">
+  <form method="dialog" id="fGroup">
+    <h2 id="dgTitle">Novo documento</h2><p class="muted" id="dgSub"></p>
+    <div style="display:grid;grid-template-columns:100px 1fr;gap:12px"><label>Ordem<input type="number" id="dgOrd" min="1"></label><label>Tipo<select id="dgCat"></select></label></div>
+    <label>Descrição GED<input id="dgName" list="histGED" autocomplete="off" required></label>
+    <label>Válido até (se houver)<input type="date" id="dgVal"></label>
+    <div class="dlg-act"><button class="btn primary" value="ok" type="submit">Criar documento</button><button class="btn" value="cancel" type="submit" formnovalidate>Cancelar</button></div>
+  </form>
+</dialog>
 
-// ── Upload ────────────────────────────────────────────────────────────────────
-function onFile(tipo, input) {
-  const f = input.files[0];
-  if (!f) return;
-  const map = { pdf: ['boxPdf','fnPdf'], v: ['boxV','fnV'], l: ['boxL','fnL'] };
-  const [box, fn] = map[tipo];
-  document.getElementById(box).classList.add('ok');
-  document.getElementById(fn).textContent = '✓ ' + f.name;
-  if (tipo === 'pdf') filePdf = f;
-  if (tipo === 'v')   fileV   = f;
-  if (tipo === 'l')   fileL   = f;
-  const ok = filePdf && fileV && fileL;
-  document.getElementById('btnProc').disabled = !ok;
-}
+<datalist id="histGED"></datalist><datalist id="catExig"></datalist><datalist id="catFund"></datalist>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="busy" id="busy" hidden><div class="busy-box" role="status"><strong id="busyMsg">Processando…</strong><div class="bar"><i id="busyBar"></i></div></div></div>
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function parseCSV(txt) {
-  txt = txt.replace(/^\uFEFF/, '');
-  const lines = txt.trim().split(/\r?\n/);
-  const hdr = lines[0].split(';').map(h => h.trim());
-  return lines.slice(1).filter(l => l.trim()).map(line => {
-    const v = line.split(';'), o = {};
-    hdr.forEach((h, i) => o[h] = (v[i] || '').trim());
-    return o;
-  });
-}
-
-function readText(f) {
-  return new Promise(res => {
-    const r = new FileReader();
-    r.onload = e => res(e.target.result);
-    r.readAsText(f, 'UTF-8');
-  });
-}
-
-function readArrayBuffer(f) {
-  return new Promise(res => {
-    const r = new FileReader();
-    r.onload = e => res(e.target.result);
-    r.readAsArrayBuffer(f);
-  });
-}
-
-function setStatus(msg, tipo) {
-  const el = document.getElementById('status');
-  el.className = 'status ' + tipo;
-  el.textContent = msg;
-}
-
-function setProgress(pct) {
-  const bar = document.getElementById('progBar');
-  const inner = document.getElementById('progInner');
-  if (pct <= 0) { bar.style.display = 'none'; return; }
-  bar.style.display = 'block';
-  inner.style.width = pct + '%';
-  if (pct >= 100) setTimeout(() => bar.style.display = 'none', 800);
-}
-
-// ── Extração do PDF via pdf.js ────────────────────────────────────────────────
-async function extrairConfrontacoesDoPDF(arrayBuffer) {
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  let textoTotal = '';
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const content = await page.getTextContent();
-    // Junta os itens de texto mantendo separação por espaço
-    const linhasPag = [];
-    let lastY = null;
-    let linhaAtual = '';
-    for (const item of content.items) {
-      const y = Math.round(item.transform[5]);
-      if (lastY !== null && Math.abs(y - lastY) > 3) {
-        if (linhaAtual.trim()) linhasPag.push(linhaAtual.trim());
-        linhaAtual = '';
-      }
-      linhaAtual += (linhaAtual ? ' ' : '') + item.str;
-      lastY = y;
-    }
-    if (linhaAtual.trim()) linhasPag.push(linhaAtual.trim());
-    textoTotal += linhasPag.join('\n') + '\n';
-  }
-
-  return parsearConfrontacoes(textoTotal);
-}
-
-// Parseia o texto extraído e monta mapa vértice → confrontação completa
-function parsearConfrontacoes(texto) {
-  const confMap = {};
-  const reCNS = /CNS:\s*([\d.\-]+)\s*\|\s*Mat\.\s*([\d.]+)/;
-  const reVertice = /([A-Z0-9]+-[A-Z]-\d+)/g;
-
-  // Une todo o texto numa linha só para tolerar quebras do pdf.js
-  const plano = texto.replace(/\n/g, ' ').replace(/\s{2,}/g, ' ');
-
-  // Localiza todos os códigos de vértice e suas posições
-  let m;
-  const lista = [];
-  while ((m = reVertice.exec(plano)) !== null) {
-    lista.push({ codigo: m[1], pos: m.index });
-  }
-
-  // Para cada vértice busca CNS+Mat nos próximos 350 caracteres
-  for (let i = 0; i < lista.length; i++) {
-    const { codigo, pos } = lista[i];
-    if (confMap[codigo]) continue; // já achou
-    const trecho = plano.substring(pos, pos + 350);
-    const mC = trecho.match(reCNS);
-    confMap[codigo] = mC
-      ? { cns: mC[1].trim(), mat: mC[2].trim() }
-      : { cns: '', mat: '' };
-  }
-
-  return confMap;
-}
-
-// ── Processamento principal ───────────────────────────────────────────────────
-async function processar() {
-  const btn = document.getElementById('btnProc');
-  btn.disabled = true;
-  btn.textContent = 'Processando...';
-  document.getElementById('resultArea').style.display = 'none';
-  setProgress(10);
-
-  try {
-    setStatus('Lendo arquivos CSV...', 'info');
-    const [txtV, txtL, pdfBuffer] = await Promise.all([
-      readText(fileV),
-      readText(fileL),
-      readArrayBuffer(filePdf)
-    ]);
-
-    setProgress(30);
-    const dadosV = parseCSV(txtV);
-    const dadosL = parseCSV(txtL);
-
-    // Mapa de limites por vértice de origem
-    const limMap = {};
-    dadosL.forEach(l => limMap[l.DO_VERTICE] = l);
-
-    setStatus('Extraindo confrontações do PDF...', 'info');
-    setProgress(55);
-
-    const confMap = await extrairConfrontacoesDoPDF(pdfBuffer);
-    const qtdConf = Object.keys(confMap).length;
-
-    setProgress(80);
-
-    // Funções de formatação
-    function graus(raw, dir) {
-      const p = raw.trim().split(' ');
-      const neg = (p[3] || dir) === 'W' || (p[3] || dir) === 'S' ? '-' : '';
-      return `${neg}${p[0]}\u00b0${p[1]}'${p[2]}"`;
-    }
-    function azStr(dec) {
-      const v = parseFloat(dec.replace(',', '.'));
-      const g = Math.floor(v), m = Math.round((v - g) * 60);
-      return `${g}\u00b0${String(m).padStart(2, '0')}'`;
-    }
-    function distStr(dec) {
-      return parseFloat(dec.replace(',', '.')).toFixed(2);
-    }
-
-    linhasFinais = dadosV.map(v => {
-      const s = limMap[v.CODIGO] || {};
-      return {
-        codigo: v.CODIGO || '',
-        lon:    v.X ? graus(v.X, 'W') : '',
-        lat:    v.Y ? graus(v.Y, 'S') : '',
-        alt:    v.Z ? parseFloat(v.Z.replace(',', '.')).toFixed(3) : '',
-        prox:   s.AO_VERTICE    || '',
-        az:     s.AZIMUTE       ? azStr(s.AZIMUTE)       : '',
-        dist:   s.COMPRIMENTO   ? distStr(s.COMPRIMENTO) : '',
-        conf: (() => {
-        const info = confMap[v.CODIGO];
-        const nomeCSV = s.CONFRONTANTE_DESC || '';
-        if (!info) return nomeCSV;
-        if (!info.cns) return nomeCSV; // rio/córrego: só nome do CSV
-        return 'CNS: ' + info.cns + ' | Mat. ' + info.mat + ' | ' + nomeCSV;
-      })()
-      };
-    });
-
-    setProgress(100);
-    renderPrevia(linhasFinais);
-    document.getElementById('resultArea').style.display = 'block';
-    document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-    const semConf = linhasFinais.filter(l => !l.conf).length;
-    if (semConf > 0) {
-      setStatus(
-        `✅ Pronto! ${linhasFinais.length} vértices • ${qtdConf} confrontações do PDF` +
-        ` ⚠️ ${semConf} vértice(s) sem confrontação — verifique a prévia`,
-        'warn'
-      );
-    } else {
-      setStatus(
-        `✅ Pronto! ${linhasFinais.length} vértices • ${qtdConf} confrontações extraídas do PDF`,
-        'ok'
-      );
-    }
-
-  } catch (e) {
-    setStatus('❌ Erro: ' + e.message, 'err');
-    console.error(e);
-    setProgress(0);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '⚙️ Processar arquivos';
-  }
-}
-
-// ── Prévia na tela ────────────────────────────────────────────────────────────
-function renderPrevia(linhas) {
-  document.getElementById('totalV').textContent = linhas.length;
-  const t = document.getElementById('prevTbl');
-  const cols = ['#','Vértice','Longitude','Latitude','Alt.(m)','Próximo','Azimute','Dist.(m)','Confrontação'];
-  const thead = '<thead><tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr></thead>';
-  const tbody = '<tbody>' + linhas.map((l, i) => `<tr>
-    <td>${i+1}</td>
-    <td style="font-weight:700;">${l.codigo}</td>
-    <td style="white-space:nowrap;">${l.lon}</td>
-    <td style="white-space:nowrap;">${l.lat}</td>
-    <td>${l.alt}</td>
-    <td>${l.prox}</td>
-    <td>${l.az}</td>
-    <td>${l.dist}</td>
-    <td style="max-width:300px;white-space:normal;">${xesc(l.conf)}</td>
-  </tr>`).join('') + '</tbody>';
-  t.innerHTML = thead + tbody;
-}
-
-// ── Geração do DOCX ───────────────────────────────────────────────────────────
-function baixarDocx() {
-  if (!linhasFinais.length) {
-    setStatus('Processe os arquivos primeiro.', 'err');
-    return;
-  }
-
-  // Larguras das colunas em DXA (1440 DXA = 2,54 cm)
-  // A4 retrato, margens 1cm cada lado: largura útil = 16,9cm = ~9610 DXA
-  // Código | Longitude | Latitude | Altitude | Código | Azimute | Dist. | Confrontações
-  const CW = [870, 1050, 1050, 760, 870, 680, 680, 3650];
-  const TW = CW.reduce((a, b) => a + b, 0); // 9610
-
-  const BS = `w:val="single" w:sz="4" w:space="0" w:color="000000"`;
-
-  function xe(s) {
-    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  function wRun(txt, sz, bold) {
-    return `<w:r><w:rPr>
-      <w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>
-      <w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/>
-      ${bold ? '<w:b/><w:bCs/>' : ''}
-    </w:rPr><w:t xml:space="preserve">${xe(txt)}</w:t></w:r>`;
-  }
-
-  function wCell(txt, w, opts = {}) {
-    const { bold=false, sz=16, center=false, bg='', span=0 } = opts;
-    const sp  = span > 1 ? `<w:gridSpan w:val="${span}"/>` : '';
-    const shd = bg ? `<w:shd w:val="clear" w:color="auto" w:fill="${bg}"/>` : '';
-    return `<w:tc>
-      <w:tcPr>
-        ${sp}
-        <w:tcW w:w="${w}" w:type="dxa"/>
-        <w:tcBorders>
-          <w:top ${BS}/><w:left ${BS}/><w:bottom ${BS}/><w:right ${BS}/>
-        </w:tcBorders>
-        ${shd}
-        <w:tcMar>
-          <w:top w:w="45" w:type="dxa"/><w:bottom w:w="45" w:type="dxa"/>
-          <w:left w:w="75" w:type="dxa"/><w:right w:w="75" w:type="dxa"/>
-        </w:tcMar>
-        <w:vAlign w:val="center"/>
-      </w:tcPr>
-      <w:p>
-        <w:pPr>
-          <w:jc w:val="${center ? 'center' : 'left'}"/>
-          <w:spacing w:before="0" w:after="0"/>
-        </w:pPr>
-        ${wRun(txt, sz, bold)}
-      </w:p>
-    </w:tc>`;
-  }
-
-  function wHCell(txt, w, span = 0) {
-    return wCell(txt, w, { bold: true, sz: 16, center: true, bg: '', span });
-  }
-
-  function wTr(cells, isHeader = false) {
-    return `<w:tr>
-      <w:trPr>${isHeader ? '<w:tblHeader/>' : ''}<w:cantSplit/></w:trPr>
-      ${cells}
-    </w:tr>`;
-  }
-
-  const colGrid = CW.map(w => `<w:gridCol w:w="${w}"/>`).join('');
-
-  const hRow1 = wTr(wHCell('DESCRI\u00c7\u00c3O DA PARCELA', TW, 8), true);
-
-  const hRow2 = wTr(
-    wHCell('V\u00c9RTICE',       CW[0]+CW[1]+CW[2]+CW[3], 4) +
-    wHCell('SEGMENTO VANTE', CW[4]+CW[5]+CW[6]+CW[7], 4),
-    true
-  );
-
-  const hRow3 = wTr(
-    wHCell('C\u00f3digo',         CW[0]) +
-    wHCell('Longitude',           CW[1]) +
-    wHCell('Latitude',            CW[2]) +
-    wHCell('Altitude (m)',        CW[3]) +
-    wHCell('C\u00f3digo',         CW[4]) +
-    wHCell('Azimute',             CW[5]) +
-    wHCell('Dist. (m)',           CW[6]) +
-    wHCell('Confronta\u00e7\u00f5es', CW[7]),
-    true
-  );
-
-  const dataRows = linhasFinais.map(l =>
-    wTr(
-      wCell(l.codigo, CW[0], { center:true,  sz:16 }) +
-      wCell(l.lon,    CW[1], { center:true,  sz:14 }) +
-      wCell(l.lat,    CW[2], { center:true,  sz:14 }) +
-      wCell(l.alt,    CW[3], { center:true,  sz:16 }) +
-      wCell(l.prox,   CW[4], { center:true,  sz:16 }) +
-      wCell(l.az,     CW[5], { center:true,  sz:16 }) +
-      wCell(l.dist,   CW[6], { center:true,  sz:16 }) +
-      wCell(l.conf,   CW[7], { center:false, sz:14 })
-    )
-  ).join('');
-
-  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document
-  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-<w:body>
-  <w:tbl>
-    <w:tblPr>
-      <w:tblW w:w="${TW}" w:type="dxa"/>
-      <w:tblBorders>
-        <w:top ${BS}/><w:left ${BS}/><w:bottom ${BS}/><w:right ${BS}/>
-        <w:insideH ${BS}/><w:insideV ${BS}/>
-      </w:tblBorders>
-      <w:tblLook w:val="0000"/>
-    </w:tblPr>
-    <w:tblGrid>${colGrid}</w:tblGrid>
-    ${hRow1}${hRow2}${hRow3}${dataRows}
-  </w:tbl>
-  <w:sectPr>
-    <w:pgSz w:w="11906" w:h="16838"/>
-    <w:pgMar w:top="567" w:right="567" w:bottom="567" w:left="567"
-             w:header="0" w:footer="0" w:gutter="0"/>
-  </w:sectPr>
-</w:body>
-</w:document>`;
-
-  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:docDefaults>
-    <w:rPrDefault><w:rPr>
-      <w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>
-      <w:sz w:val="16"/><w:szCs w:val="16"/>
-    </w:rPr></w:rPrDefault>
-    <w:pPrDefault><w:pPr>
-      <w:spacing w:after="0" w:line="240" w:lineRule="auto"/>
-    </w:pPr></w:pPrDefault>
-  </w:docDefaults>
-</w:styles>`;
-
-  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml"  ContentType="application/xml"/>
-  <Override PartName="/word/document.xml"
-    ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-  <Override PartName="/word/styles.xml"
-    ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
-</Types>`;
-
-  const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1"
-    Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
-    Target="word/document.xml"/>
-</Relationships>`;
-
-  const docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1"
-    Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
-    Target="styles.xml"/>
-</Relationships>`;
-
-  const zip = new JSZip();
-  zip.file('[Content_Types].xml', contentTypes);
-  zip.file('_rels/.rels', rootRels);
-  zip.file('word/document.xml', documentXml);
-  zip.file('word/styles.xml', stylesXml);
-  zip.file('word/_rels/document.xml.rels', docRels);
-
-  zip.generateAsync({
-    type: 'blob',
-    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    compression: 'DEFLATE'
-  }).then(blob => {
-    saveAs(blob, 'memorial_SIGEF.docx');
-    setStatus('✅ .docx baixado! Abra no Word → Ctrl+A → Ctrl+C → cole no Tri7', 'ok');
-  });
-}
-
-function xesc(s) {
-  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-</script>
+<script src="lib/pdf.min.js?v=1.0.0"></script>
+<script src="lib/pdf-lib.min.js?v=1.0.0"></script>
+<script src="lib/jszip.min.js?v=1.0.0"></script>
+<script src="motor.js?v=1.0.0"></script>
+<script src="js/nucleo.js?v=1.0.0"></script>
+<script src="js/dominio.js?v=1.0.0"></script>
+<script src="js/estado.js?v=1.0.0"></script>
+<script src="js/navegacao.js?v=1.0.0"></script>
+<script src="js/ged.js?v=1.0.0"></script>
+<script src="js/visualizador.js?v=1.0.0"></script>
+<script src="js/conferencia.js?v=1.0.0"></script>
+<script src="js/checklist.js?v=1.0.0"></script>
+<script src="js/incorporacao.js?v=1.0.0"></script>
+<script src="js/nota.js?v=1.0.0"></script>
+<script src="js/inicio.js?v=1.0.0"></script>
 </body>
 </html>
