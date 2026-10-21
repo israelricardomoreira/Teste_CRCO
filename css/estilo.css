@@ -252,3 +252,32 @@ dialog label{display:flex;flex-direction:column;font-size:12px;font-weight:600;c
 .pok{position:absolute;left:4px;bottom:22px;background:var(--ok);color:#fff;border-radius:999px;font-size:10px;font-weight:700;padding:0 6px}
 .notaprog{font-size:13px;padding:8px 10px;border-radius:var(--r-md);margin-bottom:8px}
 .notaprog.ok{background:var(--ok-soft);color:var(--ok)}.notaprog.warn{background:var(--warn-soft);color:var(--warn)}
+
+table.q textarea.comp{min-width:380px;width:100%;min-height:52px;font-size:12px;line-height:1.4;padding:4px 6px;resize:vertical}
+table.q select.casa{min-height:20px;height:20px;padding:0 2px;font-size:10px;width:auto;margin-top:2px;background:#fff;color:var(--text);border-radius:3px}
+table.q td.c.mis{color:var(--err)}
+
+/* ficha: validações, resumo e texto da matrícula */
+.val-err{border-color:var(--err)!important;background:var(--err-soft)!important}
+.val-warn{border-color:#d99a00!important;background:var(--warn-soft)!important}
+.valmsg{font-size:12px;margin-top:2px}.valmsg.err{color:var(--err)}.valmsg.warn{color:var(--warn)}
+#step-conf .panel-h .seg button{min-height:30px}
+#vFicha[aria-pressed=true],#vResumo[aria-pressed=true]{background:var(--primary);color:#fff}
+table.resumo{width:100%;border-collapse:collapse;font-size:13px}
+table.resumo th{width:34%;text-align:left;font-weight:600;color:var(--muted);vertical-align:top;padding:5px 8px 5px 0;border-bottom:1px solid var(--border)}
+table.resumo td{padding:5px 0;border-bottom:1px solid var(--border);vertical-align:top;white-space:pre-wrap;word-break:break-word}
+table.resumo td:last-child{width:24px;text-align:center}
+table.resumo tr[data-ir]{cursor:pointer}table.resumo tr[data-ir]:hover{background:var(--surface-2)}
+table.resumo .rs-g td{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--primary);padding-top:14px;border-bottom:2px solid var(--primary-soft)}
+.mattxt{white-space:pre-wrap;font:13px/1.7 var(--mono);max-height:68vh;overflow:auto;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px;margin-top:8px}
+.mk-leg{font-size:12px;margin-top:6px;line-height:2}
+mark{border-radius:3px;padding:0 1px;color:inherit}
+.mk-imovel{background:#e9f0fa}.mk-area{background:#ffe08a}.mk-conf{background:#d7f2df}.mk-prop{background:#eadcff}.mk-titular{background:#c7ddff;font-weight:700}
+.mk-ato{background:#e8e8e8;font-weight:700}.mk-onus{background:#ffc9c4;font-weight:700}.mk-onusok{background:#d7f2df;text-decoration:line-through}.mk-cep{background:#ffe2bf}
+.mk-foco{outline:3px solid #2f6fd0;outline-offset:2px}
+
+.rev{border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:10px;background:#fff}
+.rev-h{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--surface-2);font-size:13px}
+.rev-i{display:grid;grid-template-columns:64px 1fr auto;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border);font-size:13px}
+.rev-n{font:600 11px var(--mono);color:var(--primary)}
+.rev-s{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}

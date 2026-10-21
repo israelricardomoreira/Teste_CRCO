@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/nucleo.js: utilitários de tela e funções do motor usadas em todo o programa */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/nucleo.js'] = '1.3.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/nucleo.js'] = '1.4.0';
 const {onlyDigits, todayISO, parseBR, fmt, fmtDate, brToISO, joinE, extenso, validCPF, validCNPJ, unitShort, fiOf} = Motor;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

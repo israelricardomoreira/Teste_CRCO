@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/visualizador.js: lupa, régua, contraste, texto/OCR e exigência rápida */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/visualizador.js'] = '1.3.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/visualizador.js'] = '1.4.0';
 /* ---------- OCR (Tesseract.js, carregado sob demanda) ---------- */
 let ocrWorker = null;
 async function ensureOCR(){

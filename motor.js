@@ -116,6 +116,10 @@ function auditoria(R, I, campos, meta){
   const bad = R.pavChecks.filter(c => !c.ok);
   if (bad.length) A.push(['err', `Áreas privativas das unidades, somadas por pavimento, divergem do Quadro I: ${bad.slice(0, 6).map(c => c.t).join('; ')}${bad.length > 6 ? '…' : ''}.`]);
   else if (R.pavChecks.length) A.push(['ok', 'Áreas privativas das unidades somadas por pavimento conferem com o Quadro I.']);
+  if (campos.reqData && campos.alvaraData) A.push(campos.reqData < campos.alvaraData ? ['err', `Data do requerimento (${fmtDate(campos.reqData)}) é anterior à do alvará (${fmtDate(campos.alvaraData)}).`] : ['ok', 'Requerimento posterior ao alvará de construção.']);
+  const ater = parseBR(campos.areaTerreno), ter = R.q1.filter(x => /t[eé]rreo/i.test(x.r.nome));
+  if (ater > 0 && ter.length) { const s17 = ter.reduce((s, x) => s + x.c[17] * x.qtd, 0);
+    A.push(Math.abs(s17 - ater) < tol ? ['ok', `Área real do térreo (QI col. 17) = área do terreno (${fmt(ater)} m²).`] : ['err', `Área real do térreo (QI col. 17) soma ${fmt(s17)} m², mas o terreno tem ${fmt(ater)} m² (diferença de ${fmt(s17 - ater)} m²). O térreo deve fechar o lote inteiro (cobertas + descobertas).`]); }
   const sumCalc = R.q2.reduce((s, x) => s + x.fi, 0);
   A.push(Math.abs(sumCalc - 1) < 10 ** -(p + 2) ? ['ok', `Soma dos coeficientes calculados = ${fmt(1, p)}.`] : ['err', `Soma dos coeficientes calculados = ${fmt(sumCalc, p)} (sem área equivalente lançada?).`]);
   const comRT = R.q2.filter(x => String(x.r.fiRT || '').trim() !== '');
@@ -136,6 +140,10 @@ function auditoria(R, I, campos, meta){
     A.push(diff >= 0 && diff <= 2 ? ['ok', `CUB de ${String(cmo).padStart(2, '0')}/${cy}: no mês de referência ou nos dois anteriores (NBR 12721, 6.4.1).`] : ['err', `CUB de ${String(cmo).padStart(2, '0')}/${cy} fora do mês de referência (${fmtDate(ref)}) e dos dois anteriores (NBR 12721, 6.4.1).`]);
   } else A.push(['warn', 'Informe o mês do CUB e a data do requerimento para checar a atualização do custo (NBR 12721, 6.4.1).']);
   if (parseBR(I.q3.cub) <= 0) A.push(['warn', 'CUB não informado: o item 5 do Quadro III fica zerado.']);
+  if (R.q1.some(x => x.r.lido) || R.q2.some(x => x.r.lido)) {
+    const dif = conferirQuadrosLidos(R, I.lidosTot);
+    A.push(dif.length ? ['err', `Colunas calculadas pelo RT divergem do cálculo em ${dif.length} ponto(s): ${dif.slice(0, 6).join('; ')}${dif.length > 6 ? '…' : ''}.`] : ['ok', 'Todas as colunas calculadas pelo RT nos Quadros I e II (e os totais) conferem com o cálculo.']);
+  }
   const rt = parseBR(I.q3.v13rt);
   if (rt > 0) { const d = Math.abs(rt - R.Q3.v13); A.push(d < 1 ? ['ok', 'Custo global do RT confere com o cálculo do Quadro III.'] : ['err', `Custo global do RT (R$ ${fmt(rt)}) difere do calculado (R$ ${fmt(R.Q3.v13)}) em R$ ${fmt(d)}.`]); }
   return A;
@@ -213,7 +221,7 @@ function auditoria(R, I, campos, meta){
     });
     if (!R.cep) { const cc = ci.match(/CEP\s*(?:n[º°o.]*\s*)?:?\s*(\d{2}\.?\d{3}-\d{3})/i); if (cc) R.cep = cc[1]; }
     R.onusAbertos = R.atos.filter(a => a.onus && !a.cancelado).map(a => ({rot:a.rot, natureza:a.natureza}));
-    const ult = R.atos[R.atos.length - 1]; R.ultimoAto = ult ? `${ult.rot}-${R.numero}` : '';
+    const ult = R.atos[R.atos.length - 1]; R.ultimoAto = ult ? ult.rot : ''; R.ultimoAtoCompleto = ult ? `${ult.rot}-${R.numero}` : '';
     if (!R.atos.length) R.alertas.push('Nenhum ato (R-/Av-) reconhecido: confira se o texto está completo.');
     if (!R.areaNum) R.alertas.push('Área do imóvel não reconhecida na abertura da matrícula.');
     if (R.titular && !R.titular.doc && R.titular.ato !== 'abertura') R.alertas.push('CPF/CNPJ do titular atual não reconhecido.');
@@ -231,6 +239,7 @@ function auditoria(R, I, campos, meta){
     }
     if (M.titular) {
       const ref = (partes || []).filter(p => /Transmitente|Incorporador|Propriet|Devedor/i.test(p.papel || ''));
+      if (campos.incNome || campos.incCnpj) ref.push({papel:'Incorporador', nome:campos.incNome || '', doc:campos.incCnpj || ''});
       const docT = dig(M.titular.doc);
       if (!ref.length) out.push(['warn', `Titular atual: ${M.titular.nomeAtual || M.titular.nome}${M.titular.doc ? ' (' + M.titular.doc + ')' : ''} — lance o transmitente/incorporador nas Partes para conferir a continuidade.`]);
       else {
@@ -315,6 +324,107 @@ function auditoria(R, I, campos, meta){
     if (obj && typeof obj === 'object') { const o = {}; Object.keys(obj).forEach(k => { o[k] = anonimizarObjeto(obj[k], an); }); return o; }
     return obj;
   }
-  return {VERSAO:'1.3.0', onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
+  /* ---------- Certidões: tipo, resultado, emissão e validade a partir do texto ---------- */
+  function lerCertidao(nome, texto){
+    const t = (String(nome || '') + ' ' + String(texto || '')).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ');
+    let tipo = 'OUTRA';
+    if (/tjdft|distrito federal e territorios/.test(t)) tipo = 'TJDFT';
+    else if (/protesto/.test(t)) tipo = /distrito federal|\bdf\b|brasilia/.test(t) ? 'PROTDF' : 'PROT';
+    else if (/trabalhist|cndt|justica do trabalho/.test(t)) tipo = 'TRAB';
+    else if (/receita federal|pgfn|tributos federais|divida ativa da uniao/.test(t)) tipo = 'FED';
+    else if (/sefaz|secretaria (de estado )?da economia|fazenda estadual|estado de goias.{0,40}debito/.test(t)) tipo = 'SEFAZ';
+    else if (/municip|prefeitura/.test(t)) tipo = 'MUN';
+    else if (/criminal|criminais/.test(t)) tipo = 'CRIM';
+    else if (/civel|civeis|distribuicao|distribuidor/.test(t)) tipo = 'CIV';
+    else if (/onus|inteiro teor|situacao juridica/.test(t)) tipo = 'ONUS';
+    const res = /positiva com efeitos? de negativa/.test(t) ? 'Positiva com efeito de negativa' : /\bpositiva\b|constam? (debitos|acoes|processos|titulos)/.test(t) && !/nao constam?|nada consta|negativa/.test(t) ? 'Positiva' : 'Negativa';
+    const iso = d => { const m = d.match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
+    const val = t.match(/(?:valida ate|validade(?: ate)?|valido ate)\s*:?\s*(?:o dia\s*)?(\d{2}\/\d{2}\/\d{4})/), em = t.match(/(?:emitida|emissao|expedida|gerada|data da certidao|emitido)\D{0,25}(\d{2}\/\d{2}\/\d{4})/);
+    const qualquer = t.match(/\d{2}\/\d{2}\/\d{4}/);
+    return {tipo, res, emissao:em ? iso(em[1]) : (qualquer ? iso(qualquer[0]) : ''), validade:val ? iso(val[1]) : ''};
+  }
+  /* ---------- Quadros I e II da NBR 12721 a partir do PDF (posição das palavras) ----------
+   * Os quadros trazem uma linha com os números das colunas (1..18 no QI e 19..38 no QII).
+   * Cada valor é encaixado na coluna cujo número está mais perto na horizontal. */
+  const RX_NUM = /^-?\d{1,3}(?:\.\d{3})*(?:,\d+)?$|^-?\d+(?:,\d+)?$/;
+  function linhasDePalavras(words){
+    const ws = (words || []).slice().sort((a, b) => (a.y + a.h / 2) - (b.y + b.h / 2)), L = [];
+    ws.forEach(w => { const cy = w.y + w.h / 2, l = L.find(x => Math.abs(x.cy - cy) < Math.max(w.h, x.h) * .45); if (l) { l.ws.push(w); l.cy = (l.cy * (l.ws.length - 1) + cy) / l.ws.length; } else L.push({cy, h:w.h, ws:[w]}); });
+    L.forEach(l => l.ws.sort((a, b) => a.x - b.x));
+    return L.sort((a, b) => a.cy - b.cy);
+  }
+  function cabecalhoColunas(linhas, de, ate){
+    for (const l of linhas) {
+      const nums = l.ws.filter(w => /^\d{1,2}$/.test(w.t)).map(w => ({n:+w.t, cx:w.x + w.w / 2}));
+      const seq = nums.filter(c => c.n >= de && c.n <= ate);
+      if (seq.length >= (ate - de + 1) * .8 && new Set(seq.map(c => c.n)).size === seq.length) return {cy:l.cy, cols:seq.sort((a, b) => a.cx - b.cx)};
+    }
+    return null;
+  }
+  function lerTabela(words, de, ate){
+    const linhas = linhasDePalavras(words), cab = cabecalhoColunas(linhas, de, ate); if (!cab) return null;
+    /* a 1ª coluna numerada (1 ou 19) é a do nome do pavimento/unidade: os valores começam na seguinte */
+    const cols = cab.cols.filter(c => c.n !== de), passo = (cols[cols.length - 1].cx - cols[0].cx) / Math.max(1, cols.length - 1), limEsq = cols[0].cx - passo * .55, limDir = cols[cols.length - 1].cx + passo * .6;
+    const out = [];
+    for (const l of linhas) {
+      if (l.cy <= cab.cy) continue;
+      const rotulo = l.ws.filter(w => w.x + w.w / 2 < limEsq).map(w => w.t).join(' ').trim();
+      const nums = l.ws.filter(w => w.x + w.w / 2 >= limEsq && RX_NUM.test(w.t));
+      if (!rotulo && !nums.length) continue;
+      const v = {}; let qtd = '';
+      nums.forEach(w => { const cx = w.x + w.w / 2; if (cx > limDir) { qtd = w.t; return; } let best = cols[0]; cols.forEach(c => { if (Math.abs(c.cx - cx) < Math.abs(best.cx - cx)) best = c; }); if (Math.abs(best.cx - cx) <= passo * .6) v[best.n] = w.t; });
+      out.push({rotulo, v, qtd, total:/^TOTA(L|IS)/i.test(rotulo)});
+      if (/^TOTA(L|IS)/i.test(rotulo)) break;
+    }
+    return out;
+  }
+  /* paginas: [{words:[{t,x,y,w,h}], texto}] — devolve {q1, q2, avisos} prontos para o estado da incorporação */
+  function lerQuadrosNBR(paginas){
+    const avisos = [], Q1 = [], Q2 = [], tot = {};
+    paginas.forEach((p, ip) => {
+      const t1 = lerTabela(p.words, 1, 18), t2 = lerTabela(p.words, 19, 38);
+      if (t1 && !t2) t1.forEach(r => { if (r.total) tot.q1 = r; else if (Object.keys(r.v).length) Q1.push(Object.assign(r, {pag:ip})); });
+      if (t2) { let pav = ''; t2.forEach(r => { if (r.total) { tot.q2 = r; return; } if (!Object.keys(r.v).length) { if (r.rotulo) pav = r.rotulo; return; } Q2.push(Object.assign(r, {pav, pag:ip})); }); }
+    });
+    if (!Q1.length && !Q2.length) return {q1:[], q2:[], avisos:['Não encontrei os Quadros I e II neste documento (procurei a linha com os números das colunas 1–18 e 19–38).'], conferencia:[]};
+    if (!Q1.length) avisos.push('Quadro I não encontrado: lance as áreas dos pavimentos à mão.');
+    if (!Q2.length) avisos.push('Quadro II não encontrado: lance as áreas das unidades à mão.');
+    const nz = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const q1 = Q1.map((r, i) => ({pav:i, nome:r.rotulo || `Pavimento ${i + 1}`, qtd:r.qtd || '1', v2:r.v[2] || '', v3:r.v[3] || '', v4:r.v[4] || '', v7:r.v[7] || '', v8:r.v[8] || '', v9:r.v[9] || '', v12:r.v[12] || '', v13:r.v[13] || '', v14:r.v[14] || '', lido:r.v}));
+    const q2 = [];
+    Q2.forEach(r => {
+      let pav = q1.findIndex(x => nz(x.nome) && nz(r.pav) && (nz(x.nome).includes(nz(r.pav)) || nz(r.pav).includes(nz(x.nome))));
+      if (pav < 0) pav = 0;
+      const nome = r.rotulo.replace(/^(apt[oº°.]*|ap\.?|apartamento|unidade|unid\.?)\s*/i, '').trim() || r.rotulo;
+      const n = Math.max(1, parseInt(r.qtd, 10) || 1);
+      const base = {pav, bloco:'', pcd:false, comp:'', v20:r.v[20] || '', v21:r.v[21] || '', v22:r.v[22] || '', v25:r.v[25] || '', v26:r.v[26] || '', v27:r.v[27] || '', acess:'', fiRT:r.v[31] || '', lido:r.v};
+      if (n > 1) avisos.push(`A linha "${r.rotulo}" representa ${n} unidades idênticas: criei ${n} linhas; ajuste os nomes.`);
+      for (let k = 0; k < n; k++) q2.push(Object.assign({}, base, {nome:n > 1 ? `${nome} (${k + 1})` : nome}));
+    });
+    return {q1, q2, avisos, totais:tot};
+  }
+  /* compara as colunas calculadas que o RT escreveu com as calculadas aqui (depois de importar) */
+  function conferirQuadrosLidos(R, totais){
+    const dif = [], tol = .015;
+    R.q1.forEach(x => { const l = x.r.lido; if (!l) return; [5, 6, 10, 11, 15, 16, 17, 18].forEach(c => { if (l[c] == null) return; const a = parseBR(l[c]), b = x.c[c] || 0; if (Math.abs(a - b) > tol) dif.push(`QI ${x.r.nome} col. ${c}: RT ${fmt(a)} × calculado ${fmt(b)}`); }); });
+    R.q2.forEach(x => { const l = x.r.lido; if (!l) return; [23, 24, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38].forEach(c => { if (l[c] == null) return; const a = parseBR(l[c]), b = x.c[c] || 0; if (Math.abs(a - b) > tol) dif.push(`QII ${unitShort(x.r)} col. ${c}: RT ${fmt(a)} × calculado ${fmt(b)}`); }); });
+    if (totais && totais.q1) [17, 18].forEach(c => { const t = totais.q1.v[c]; if (t != null && Math.abs(parseBR(t) - R.T1[c]) > tol) dif.push(`Total QI col. ${c}: RT ${t} × calculado ${fmt(R.T1[c])}`); });
+    if (totais && totais.q2) [37, 38].forEach(c => { const t = totais.q2.v[c]; if (t != null && Math.abs(parseBR(t) - R.T2[c]) > tol) dif.push(`Total QII col. ${c}: RT ${t} × calculado ${fmt(R.T2[c])}`); });
+    return dif;
+  }
+  /* Quadro III: CUB, mês, padrão e custo global (texto da página) */
+  function lerQuadroIII(texto){
+    const t = String(texto || '').replace(/\s+/g, ' '), o = {};
+    const mes = t.match(/Custo Unit[aá]rio B[aá]sico para o M[eê]s de\s+([a-zç]+)\s+de\s+(\d{4})/i);
+    if (mes) { const n = MESES[mes[1].toLowerCase()]; if (n) o.cubMes = `${mes[2]}-${String(n).padStart(2, '0')}`; }
+    const cub = t.match(/M[eê]s de\s+[a-zç]+\s+de\s+\d{4}.{0,40}?(\d{1,3}(?:\.\d{3})*,\d{2})/i); if (cub) o.cub = cub[1];
+    const glob = t.match(/13\.?\s*Custo Global da Constru[cç][aã]o\s*R\$\s*([\d.]+,\d{2})/i); if (glob) o.v13rt = glob[1];
+    const pad = t.match(/\b(R\s?-?\s?(?:1|8|16)\s?-?\s?[BNA]|PP\s?-?\s?4\s?-?\s?[BN]|PIS|RP1Q|CAL\s?-?\s?8\s?-?\s?[NA]|CSL\s?-?\s?(?:8|16)\s?-?\s?[NA]|GI)\b/i);
+    const padTxt = t.match(/(Baixo|Normal|Alto)\s+(R-?\s?(?:1|8|16)|PP-?\s?4)/i);
+    if (pad) o.padrao = pad[1].replace(/\s/g, '').toUpperCase(); else if (padTxt) o.padrao = padTxt[2].replace(/\s/g, '').toUpperCase() + '-' + padTxt[1][0].toUpperCase();
+    if (o.padrao) o.padrao = o.padrao.replace(/^(R|PP|CAL|CSL)-?(\d+)-?/, '$1$2-').replace(/-$/, '');
+    return o;
+  }
+  return {VERSAO:'1.4.0', onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
 })();
 if (typeof module !== 'undefined') module.exports = Motor;

@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/ged.js: etapa 1 · documentos (GED): importar, agrupar, ordenar, ZIP e validação de assinatura */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.3.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.4.0';
 /* =====================================================================
    1. DOCUMENTOS (GED)
    ===================================================================== */
@@ -9,8 +9,9 @@ const hasSig = buf => { try { return new TextDecoder('latin1').decode(buf).inclu
 function detectCat(s){
   s = (s || '').toLowerCase();
   /* Alvará, ART/RRT e quadros da NBR vão em Projeto; requerimento e convenção em Outros (ajuste aqui se o cartório usar outra) */
+  /* como o cartório usa: alvará, ART/RRT, quadros da NBR, convenção e requerimento vão em Outros */
   const r = [[/matr[ií]cula/,'MATRICULA'],[/escritura/,'ESCRITURA'],[/procura/,'PROCURACAO'],[/certid|\bcnd/,'CERTIDAO'],[/contrato/,'CONTRATO'],[/declara/,'DECLARACAO'],
-    [/ato lavrado|traslado/,'ATO_LAVRADO'],[/memorial/,'MEMORIAL'],[/planta/,'PLANTA_ENGENHARIA'],[/projeto|alvar|\bart\b|\brrt\b|quadro|nbr|12721/,'PROJETO'],
+    [/ato lavrado|traslado/,'ATO_LAVRADO'],[/memorial/,'MEMORIAL'],[/planta/,'PLANTA_ENGENHARIA'],[/projeto/,'PROJETO'],
     [/\brg\b|\bcnh\b|identidade|\bcpf\b/,'DOCUMENTO_PESSOAL']];
   for (const [re, c] of r) if (re.test(s)) return c;
   return 'OUTROS';
@@ -38,7 +39,7 @@ function palavrasPDF(tc, vp){
   });
   return out;
 }
-const TIPOS_ACEITOS = /\.(pdf|jpe?g|png|webp|tiff?)$/i;
+const TIPOS_ACEITOS = /\.(pdf|jpe?g|png|webp|tiff?|zip)$/i;
 /* TIFF (padrão de muito scanner), inclusive multipágina: cada página vira uma imagem */
 async function tiffParaImagens(buf){
   if (!window.UTIF) throw new Error('leitor de TIFF não carregou');
@@ -62,11 +63,30 @@ function reduzirImagem(url, max = 3200){
     img.onerror = () => res(url); img.src = url;
   });
 }
+/* página do ZIP do GED: volta a usar as marcações da análise (e converte se a página foi girada antes de exportar) */
+function religarMarcacoes(p, chave, rot){
+  p.chave = chave; const A = S.anot && S.anot[chave]; if (!A || !rot || A.rotConv) return;
+  const c = (x, y) => Leitor.o2r(x, y, rot), R = a => { const [x1, y1] = c(a.x, a.y), [x2, y2] = c(a.x + a.w, a.y + a.h); a.x = Math.min(x1, x2); a.y = Math.min(y1, y2); a.w = Math.abs(x2 - x1); a.h = Math.abs(y2 - y1); };
+  (A.itens || []).forEach(a => { if (a.t === 'hl' || a.t === 'ok') R(a); else if (a.t === 'risco') { [a.x1, a.y1] = c(a.x1, a.y1); [a.x2, a.y2] = c(a.x2, a.y2); } else if (a.t === 'traco') a.pts = a.pts.map(([x, y]) => c(x, y)); else if (a.t === 'nota') [a.x, a.y] = c(a.x, a.y); });
+  A.pontos = {}; A.rotConv = true;
+}
+/* retomada: a análise tinha GED; pede o ZIP/PDFs (ou confirma seguir sem) */
+function pedirGED(ged){
+  $('rtLista').innerHTML = ged.map(g => `<li>${String(g.order).padStart(2, '0')} · ${esc(catNome(g.category))} · ${esc(g.name)} <span class="muted">(${g.paginas} pág.)</span></li>`).join('');
+  $('dlgRetomar').showModal();
+}
 async function handleFiles(list, target = {}){
   const arr = [...list];
   const fora = arr.filter(f => !TIPOS_ACEITOS.test(f.name));
   if (fora.length) toast(`Formato não lido: ${fora.map(f => f.name).slice(0, 3).join(', ')}${fora.length > 3 ? '…' : ''}. Aceita PDF, JPG, PNG, WEBP e TIFF (foto de iPhone em HEIC: exporte como JPG).`, 'err');
-  const ok = arr.filter(f => TIPOS_ACEITOS.test(f.name)).sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric:true, sensitivity:'base'}));
+  /* ZIP do GED (o que este programa baixa): extrai os arquivos e importa como documentos */
+  const zips = arr.filter(f => /\.zip$/i.test(f.name));
+  if (zips.length) {
+    if (!window.JSZip) { toast('Leitor de ZIP indisponível.', 'err'); return; }
+    for (const z of zips) { try { const zip = await JSZip.loadAsync(await z.arrayBuffer()); const nomes = Object.keys(zip.files).filter(n => !zip.files[n].dir && /\.(pdf|jpe?g|png|webp|tiff?)$/i.test(n));
+      for (const n of nomes) arr.push(new File([await zip.files[n].async('blob')], n.split('/').pop(), {type:/\.pdf$/i.test(n) ? 'application/pdf' : ''})); } catch (e) { toast(`Não consegui abrir o ZIP ${z.name}.`, 'err'); } }
+  }
+  const ok = arr.filter(f => TIPOS_ACEITOS.test(f.name) && !/\.zip$/i.test(f.name)).sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric:true, sensitivity:'base'}));
   if (!ok.length) return;
   if (ok.some(f => /\.pdf$/i.test(f.name)) && !window.pdfjsLib) { toast('Leitor de PDF indisponível (sem internet?).', 'err'); return; }
   const novas = [], pendDocs = [];
@@ -76,6 +96,7 @@ async function handleFiles(list, target = {}){
       const f = ok[i]; busy(true, `Lendo ${f.name}`, Math.round(i / ok.length * 100));
       const key = uid(); FILES.set(key, f);
       const m = f.name.match(/^(\d+) - ([A-Z_]+) - (.+)\.(pdf|jpe?g|png|webp|tiff?)$/i);
+      const gm = m && S.gedMapa ? S.gedMapa.find(g => g.order === +m[1] && san(g.name) === san(m[3])) || S.gedMapa.find(g => g.order === +m[1]) : null;
       const ids = [];
       if (/\.pdf$/i.test(f.name)) {
         try {
@@ -89,6 +110,7 @@ async function handleFiles(list, target = {}){
             let raw = '', words = null;
             try { const tc = await pg.getTextContent(); raw = tc.items.map(it => it.str + (it.hasEOL ? '\n' : ' ')).join('').trim(); words = palavrasPDF(tc, vp); } catch (e) {}
             const p = {id:uid(), fileKey:key, name:pdf.numPages > 1 ? `${f.name.replace(/\.pdf$/i, '')} · p${j}` : f.name, dataUrl:cv.toDataURL('image/jpeg', .82), type:'pdf', pageNum:j, rotation:0, raw, words, ocr:'', hasSig:sig, grouped:false, chave:f.name + '#' + j};
+            if (gm && gm.chaves && gm.chaves[j - 1]) religarMarcacoes(p, gm.chaves[j - 1], (gm.rots || [])[j - 1] || 0);
             cv.width = cv.height = 0; novas.push(p); ids.push(p.id);
           }
           if (pdf.destroy) pdf.destroy();
@@ -103,11 +125,12 @@ async function handleFiles(list, target = {}){
         novas.push(p); ids.push(p.id);
       }
       if (target.doc) { ids.forEach(id => novas.find(x => x.id === id).grouped = true); target.doc.pageIds.splice(target.at ?? target.doc.pageIds.length, 0, ...ids); if (target.at != null) target.at += ids.length; }
-      else if (m) { const cat = m[2].toUpperCase(); pendDocs.push({pageIds:ids, category:CATS.includes(cat) ? cat : 'OUTROS', name:m[3], order:m[1]}); }
+      else if (m) { const cat = m[2].toUpperCase(); pendDocs.push({pageIds:ids, category:CATS.includes(cat) ? cat : 'OUTROS', name:gm ? gm.name : m[3], order:m[1], validade:gm ? gm.validade || '' : ''}); }
     }
   } finally { busy(false); }
   if (target.index != null) S.pages.splice(target.index, 0, ...novas); else S.pages.push(...novas);
   pendDocs.forEach(d => addDoc(d));
+  if (pendDocs.length && S.gedMapa) { S.docs.forEach(d => { const g = S.gedMapa.find(x => x.order === d.order); if (g && !d.validade && g.validade) d.validade = g.validade; }); }
   renderGED(); markDirty();
   if (novas.length) toast(`${novas.length} página(s) importada(s).`);
 }
@@ -132,6 +155,7 @@ function toggleSel(id, shift, idx){
 }
 function refDate(){ return S.campos.reqData || S.meta.dataPrenotacao || todayISO(); }
 function renderDocs(){
+  if (typeof syncCertidoesDoGED === 'function') syncCertidoesDoGED();
   const box = $('docsList'); $('docCount').textContent = S.docs.length; $('btnZip').disabled = !S.docs.length;
   if (!S.docs.length) { box.innerHTML = '<div class="empty">Selecione páginas à esquerda e clique em <b>Agrupar em documento</b> (Alt+A),<br>ou arraste as páginas para cá.</div>'; return; }
   const ref = refDate();
@@ -341,4 +365,10 @@ function bindGED(){
     if (curStep !== 'ged') goStep('ged');
   });
 
+}
+
+function bindRetomar(){
+  $('rtImp').onclick = () => $('rtFile').click();
+  $('rtFile').onchange = async e => { const fs = [...e.target.files]; e.target.value = ''; if (!fs.length) return; $('dlgRetomar').close(); if (curStep !== 'ged') goStep('ged'); await handleFiles(fs, {}); toast('GED importado: as marcações voltaram nas páginas correspondentes.'); };
+  $('rtSem').onclick = () => { if (confirm('Realmente não vai adicionar o GED? Sem ele, a Conferência fica sem as páginas e as marcações não aparecem. Dá para importar depois pela etapa Documentos.')) $('dlgRetomar').close(); };
 }

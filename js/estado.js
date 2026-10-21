@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/estado.js: estado da análise, salvar/abrir (.gori), importação da Calculadora GO-RI v3 e ligação dos campos */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/estado.js'] = '1.3.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/estado.js'] = '1.4.0';
 function freshInc(){
   return {blOn:false, blN:'2', blTipo:'Letras', denom:'APARTAMENTO', destinacao:'residenciais', precFI:'6',
     pavs:[{id:uid(),nome:'Térreo',qtd:'1',und:'3',inicio:'101'},{id:uid(),nome:'Superior',qtd:'1',und:'3',inicio:'201'}],
@@ -19,13 +19,14 @@ function markDirty(){ dirty = true; clearTimeout(autosaveT); autosaveT = setTime
 function snapshot(){
   return {v:4, app:'qualificador-crco', salvoEm:new Date().toISOString(), meta:S.meta, campos:S.campos, src:S.src, ok:S.ok,
     partes:S.partes, certidoes:S.certidoes, checklist:S.checklist, exig:S.exig, nota:S.nota, inc:S.inc, mat:S.mat, anot:S.anot || {}, aprend:S.aprend ? Object.assign({}, S.aprend, {_t:null, _etapa:null}) : null,
-    ged:S.docs.map(d => ({order:d.order, category:d.category, name:d.name, validade:d.validade || '', paginas:d.pageIds.length}))};
+    ged:S.docs.map(d => { const ps = d.pageIds.map(pageById).filter(Boolean); return {order:d.order, category:d.category, name:d.name, validade:d.validade || '', paginas:ps.length, chaves:ps.map(chaveDe), rots:ps.map(p => p.rotation || 0)}; })};
 }
 function applySnapshot(o){
   const base = freshState(), keep = {pages:S.pages, docs:S.docs};
   const inc = Object.assign(freshInc(), o.inc || {});
   inc.q3 = Object.assign(freshInc().q3, (o.inc || {}).q3 || {});
-  S = Object.assign(base, {meta:Object.assign(base.meta, o.meta || {}), campos:o.campos || {}, src:o.src || {}, ok:o.ok || {},
+  S.gedMapa = o.ged || S.gedMapa || null;
+  S = Object.assign(base, {gedMapa:o.ged || null, meta:Object.assign(base.meta, o.meta || {}), campos:o.campos || {}, src:o.src || {}, ok:o.ok || {},
     partes:o.partes || [], certidoes:o.certidoes || [], checklist:o.checklist || [], exig:o.exig || [], nota:o.nota || '', inc, mat:o.mat || null, aprend:o.aprend || null, anot:o.anot || {}}, keep);
 }
 function autosave(){ if (!$('restoreBar').hidden) return; lsSet('qcrco_autosave', {t:Date.now(), d:snapshot()}); }
@@ -43,6 +44,7 @@ async function abrirAnalise(file){
     else throw new Error('formato desconhecido');
     renderAll(); dirty = false;
     toast(o.config ? 'Análise da Calculadora GO-RI v3 importada. Confira os quadros.' : 'Análise aberta.');
+    if (o.v === 4 && (o.ged || []).length && !S.pages.length) pedirGED(o.ged);
   } catch (e) { console.error(e); toast('Arquivo inválido. Use um .gori deste programa ou da Calculadora GO-RI.', 'err'); }
 }
 /* Importa arquivos .gori da Calculadora GO-RI v3.1 */
@@ -103,5 +105,6 @@ function afterBind(b, el){
   if (b === 'i:blOn') renderIncCfg();
   if (el && el.closest) { const h = el.closest('[data-hasdoc]'); if (h) { const s = h.querySelector('.dchk'); if (s) s.innerHTML = docStatus(el.value); } }
   if (t === 'c' || t === 'p' || t === 'ct') updateConfProgress();
+  if (t === 'c' && typeof aplicarValidacoes === 'function') aplicarValidacoes();
 }
 

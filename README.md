@@ -30,12 +30,16 @@ Organiza o GED, confere os dados lado a lado com o documento de origem, mantém 
 | Ler página escaneada | **Lupa → Texto → Ler com OCR** ou **Conferência → Ler esta página com OCR** |
 | Ler a matrícula | **Conferência → Ler matrícula**: usa o documento MATRICULA do GED (ou o texto colado), preenche a ficha e mostra titular atual, atos, ônus em aberto e continuidade |
 | Conferir dados | Etapa **2 · Conferência**: documento grande à esquerda (em tela em pé, em cima) e ficha ao lado; a divisória é arrastável. Clique no campo e use **✂ Capturar** na imagem, um dado detectado ou o texto selecionado. A origem 📄 ◎ abre a página no trecho exato |
-| Ferramentas na página | ✋ mão (V) · 🖍 marca-texto em 3 cores (H) · ✎ riscar (R) · ☑ bloco conferido (B) · 📌 nota que vira exigência (N) · ✂ capturar texto (T, faz OCR só do trecho se a página for imagem) · ⌫ borracha (E) · Ctrl+Z desfazer · **✓ Conferida** (C) com contagem por documento · busca com destaque · zoom, largura/página inteira, girar, contraste e régua · ←/→ troca de página |
+| Ferramentas na página | ✋ mão (V) · 🖍 marca-texto livre, como no Adobe (H) · ✎ caneta livre (P) · ╱ riscar em linha (R) · ☑ bloco conferido (B) · 📌 nota que vira exigência (N) · ✂ capturar texto (T) · ⌫ borracha (E). **Cor e espessura** no painel de estilo (`[` e `]` mudam o tamanho) · Ctrl+Z desfazer · **✓ Conferida** (C) · **Ctrl + rodinha do mouse** = zoom · ‹ › passam de página e, na última, seguem para o próximo documento (⏮ ⏭ pulam documento; a caixa continua) · ⌨ mostra os atalhos |
+| Pontos a conferir | O sistema marca com tracejado azul CPF, CNPJ, datas, áreas, valores, matrícula e os valores da ficha encontrados na página. Clique (mão) para dar como conferido ou passe o bloco conferido por cima. **👁 Pontos** liga/desliga |
+| Resumo da ficha | Na Conferência, **Resumo** mostra todos os dados numa tabela inteira, sem corte; clique numa linha para ir ao campo |
 | Comparar | **⇆ Comparar** divide o documento em duas páginas (ex.: título × matrícula) |
-| Monitor em pé | **⧉ Outra janela** abre o documento numa janela própria (arraste para o monitor em pé); a ficha ocupa a tela principal. As duas conversam: capturar na janela preenche a ficha e a origem 📄 abre o trecho na janela |
+| Monitor em pé / vários documentos | **⧉ Outra janela** abre o documento numa janela própria (arraste para o monitor em pé); **＋⧉** abre mais janelas independentes para comparar documentos. Letra pequena fica nítida no zoom (a página é redesenhada na resolução do zoom) |
 | Checklist | Etapa **3**: carregue o modelo do tipo de ato, edite, exclua ou inclua itens e **Salve como meu modelo** |
-| Incorporação | Etapa **4** (aparece só em *Incorporação imobiliária*): quadros, auditoria NBR 12721 e minuta. Dá para colar do Excel |
-| Nota devolutiva | Etapa **5**: o que virou "Exigência" no checklist já está lá. Gere, revise e copie |
+| Incorporação | Etapa **4**: **Importar Quadros I, II e III do PDF** (o ★ indica o documento com os quadros) preenche áreas, coeficientes, CUB e custo global e confere as colunas calculadas do RT. Casas decimais por coluna (seletor no cabeçalho). Célula vermelha = não bate com o RT; térreo (col. 17) tem de somar a área do terreno; data do requerimento anterior ao alvará fica vermelha |
+| Nota devolutiva | Etapa **5**: **✓ Revisar texto** confere ortografia (dicionário pt-BR offline) e regras do registro (NBR 12.721, Lei 4.591/64, Lei 6.015/73, palavras repetidas, pontuação); clique na sugestão para trocar ou em *ignorar*. **Concluir: baixar GED + análise** baixa ZIP, .gori e aprendizado de uma vez |
+| Título voltou | **Abrir análise** → .gori → o sistema pede o **ZIP do GED** (ou os PDFs) e religa as marcações em cada página. Sem o GED, ele pergunta *Realmente não vai adicionar o GED?* |
+| Matrícula colada | No cartão da matrícula, **Ver o texto lido** mostra o texto com o que o sistema extraiu em destaque |
 | Arquivo de aprendizado | Baixa **junto com o ZIP do GED, em arquivo separado** (`aprendizado_….json`), ou pelo botão **Aprendizado**. Vai **anonimizado** (nomes viram `[PF_1]`/`[PJ_1]`; CPF, RG, CNH e números longos viram `#`). Guarde e mande para o Claude analisar: ele mostra o que o sistema sugeriu × o que você deixou, o que precisou digitar, o perfil de cada documento e suas notas (botão ⚑ ao lado do campo) |
 | Guardar a análise | **Salvar análise** (Ctrl+S) baixa um `.gori`. **Abrir análise** retoma. Também abre os `.gori` da Calculadora GO-RI v3 |
 
@@ -64,7 +68,9 @@ O `.gori` tem dados do título (nomes, CPF/CNPJ). Guarde na pasta do processo ou
 | `js/matricula.js` | Matrícula: cartão do 1º passo, leitura e resumo na ficha (a regra de leitura fica no `motor.js`) |
 | `js/checklist.js` | Etapa 3 · checklist editável e modelos |
 | `js/incorporacao.js` | Etapa 4 · quadros, auditoria e minuta (o cálculo está no `motor.js`) |
-| `js/nota.js` | Etapa 5 · exigências, catálogo e nota |
+| `js/quadrospdf.js` | Importação dos Quadros I, II e III da NBR 12721 a partir do PDF |
+| `js/ortografia.js` | Revisor de texto (ortografia pt-BR offline + regras do registro) |
+| `js/nota.js` | Etapa 5 · exigências, revisão, catálogo, nota e conclusão |
 | `js/aprendizado.js` | Arquivo de aprendizado: sugerido × final, perfis dos documentos, checklist, exigências, tempos e notas (anonimizado pelo `motor.js`) |
 | `js/inicio.js` | Eventos gerais, atalhos, conferência de versão e início |
 | `lib/` | Bibliotecas com versão fixa (pdf.js 3.11.174, pdf-lib 1.17.1, JSZip 3.10.1, Tesseract.js 5.1.1 com português, UTIF 3.1.0 + pako 1.0.11 para TIFF) e licenças |
@@ -75,7 +81,7 @@ O `.gori` tem dados do título (nomes, CPF/CNPJ). Guarde na pasta do processo ou
 ## Atualizar sem quebrar
 
 1. Antes de subir, rode os testes: `node --test tests/motor.test.js` (tem que dar `pass` em todos).
-2. Toda entrega tem **um número de versão** (hoje `1.3.0`). Ele aparece em: `motor.js` (VERSAO), `js/inicio.js` (VERSAO), na linha de registro do topo de cada `js/*.js` e no `?v=` dos `<script>` do `index.html`. Troque em todos.
+2. Toda entrega tem **um número de versão** (hoje `1.4.0`). Ele aparece em: `motor.js` (VERSAO), `js/inicio.js` (VERSAO), na linha de registro do topo de cada `js/*.js` e no `?v=` dos `<script>` do `index.html`. Troque em todos.
 3. Suba **todos** os arquivos alterados juntos. Se faltar algum, o site mostra um aviso vermelho dizendo qual arquivo está em versão diferente, em vez de funcionar pela metade.
 4. Se algo der errado: **Commits → escolha a versão anterior → Revert**.
 
@@ -87,3 +93,7 @@ O `.gori` tem dados do título (nomes, CPF/CNPJ). Guarde na pasta do processo ou
 4. **Arquivo de aprendizado anonimizado** antes de baixar; o protocolo vira um código que não dá para reverter.
 5. **Nenhum dado no repositório:** `.gori`, PDFs, imagens de documentos, ZIPs e planilhas estão no `.gitignore`.
 6. Rascunho automático e modelos ficam só no navegador de quem usa (localStorage).
+
+
+### Licenças de terceiros
+- `lib/ortografia/pt_BR.aff` e `pt_BR.dic`: dicionário VERO (LibreOffice pt-BR), LGPLv3 / MPL.

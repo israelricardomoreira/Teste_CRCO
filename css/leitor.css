@@ -20,7 +20,7 @@
 .lt-pl.on{background:#ffe2bf;border-color:#e07000}
 .lt-prog{font-size:12px;color:var(--muted);padding:0 4px}
 .lt-prog.tudo{color:var(--ok);font-weight:700}
-.lt-area{flex:1;min-height:0;overflow:auto;background:#4b535f;position:relative;outline:none}
+.lt-area{flex:1;min-height:0;overflow:auto;scrollbar-gutter:stable;background:#4b535f;position:relative;outline:none}
 .lt-pg{position:relative;margin:14px auto;width:max-content;box-shadow:0 6px 24px rgba(0,0,0,.45)}
 .lt-pg canvas{display:block;background:#fff;touch-action:none}
 .leitor[data-ferr=mao] canvas{cursor:grab}
@@ -43,3 +43,13 @@
 body.visor{height:100vh;overflow:hidden;display:flex;flex-direction:column;background:var(--bg)}
 body.visor #visor{flex:1;min-height:0;padding:6px}
 body.visor .vz-msg{padding:32px;text-align:center}
+
+.lt-estilo{gap:3px}
+.lt-estilo .lt-sw{width:18px;height:18px}
+.lt-corlivre{width:28px;height:24px;min-height:0;padding:0;border:1px solid var(--border);border-radius:4px;background:none}
+.lt-tam{width:90px;min-height:0;padding:0;accent-color:var(--primary)}
+.lt-tamv{font:11px var(--mono);color:var(--muted);min-width:38px}
+.lt-atalhos{font-size:12px;border-collapse:collapse}
+.lt-atalhos td{padding:2px 6px;vertical-align:top}
+.lt-atalhos kbd{font:11px var(--mono);background:var(--surface-2);border:1px solid var(--border);border-radius:3px;padding:0 4px;white-space:nowrap}
+.leitor[data-ferr=marca] canvas,.leitor[data-ferr=caneta] canvas{cursor:crosshair}

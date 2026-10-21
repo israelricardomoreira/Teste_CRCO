@@ -94,7 +94,7 @@ test('matrícula: titular, confrontações, ônus cancelado e ônus em aberto', 
   assert.equal(R.titular.nome, 'JOÃO EXEMPLO'); assert.equal(R.titular.doc, '529.982.247-25'); assert.equal(R.titular.ato, 'R-1');
   assert.equal(R.atos.find(a => a.rot === 'R-2').canceladoPor, 'Av-4');
   assert.deepEqual(R.onusAbertos.map(o => o.rot), ['Av-3']);
-  assert.equal(R.ultimoAto, 'Av-4-20.000');
+  assert.equal(R.ultimoAto, 'Av-4'); assert.equal(R.ultimoAtoCompleto, 'Av-4-20.000');
 });
 
 test('matrícula: texto sem quebras de linha (PDF/OCR) e cruzamento com a ficha', () => {
@@ -129,4 +129,38 @@ test('continuidade: parte lançada só com o nome também confere', () => {
   const R = M.lerMatricula(MAT_A);
   const X = M.cruzarMatricula(R, {}, [{papel:'Transmitente', nome:'João Exemplo', doc:''}]);
   assert.ok(X.some(x => x[0] === 'ok' && /Continuidade/.test(x[1])), JSON.stringify(X));
+});
+
+test('térreo (QI col. 17) tem de fechar a área do terreno', () => {
+  const I = caso6(), R = M.calcInc(I);
+  assert.ok(M.auditoria(R, I, {areaTerreno:'352,00'}, {}).some(a => a[0] === 'ok' && /térreo/.test(a[1])));
+  assert.ok(M.auditoria(R, I, {areaTerreno:'360,00'}, {}).some(a => a[0] === 'err' && /térreo/.test(a[1])));
+});
+
+test('Quadro III: CUB, mês, padrão e custo global', () => {
+  const t = 'Custo Unitário Básico Sinduscon-GO 3. Custo Unitário Básico para o Mês de setembro de 2026 R$ por m 2 = 1.936,93 ... Residencial Baixo R-8 2 313,68 ... 13. Custo Global da Construção R$ 607.576,20 / m²';
+  assert.deepEqual(M.lerQuadroIII(t), {cubMes:'2026-09', cub:'1.936,93', v13rt:'607.576,20', padrao:'R8-B'});
+});
+
+test('Quadros I e II por posição das colunas (tabela sintética)', () => {
+  const W = (t, x, y) => ({t, x, y, w:.02, h:.012});
+  const cab1 = [...Array(18)].map((_, i) => W(String(i + 1), .05 + i * .05, .30));
+  const q1 = [cab1, [W('TERREO', .03, .34), W('100,00', .10, .34), W('20,00', .15, .34), W('120,00', .25, .34), W('100,00', .30, .34), W('120,00', .85, .34), W('100,00', .90, .34), W('1', .97, .34)],
+    [W('TOTAIS', .03, .40), W('120,00', .85, .40)]].flat();
+  const cab2 = [...Array(20)].map((_, i) => W(String(i + 19), .05 + i * .045, .30));
+  const q2 = [cab2, [W('TERREO', .03, .33)], [W('Aptº', .01, .35), W('101', .035, .35), W('60,00', .095, .35), W('0,6000', .59, .35)], [W('Aptº', .01, .37), W('102', .035, .37), W('40,00', .095, .37), W('20,00', .14, .37), W('0,4000', .59, .37)], [W('TOTAIS', .03, .42)]].flat();
+  const L = M.lerQuadrosNBR([{words:q1}, {words:q2}]);
+  assert.equal(L.q1.length, 1); assert.equal(L.q1[0].nome, 'TERREO'); assert.equal(L.q1[0].v2, '100,00'); assert.equal(L.q1[0].v3, '20,00');
+  assert.deepEqual(L.q2.map(u => [u.nome, u.v20, u.v21, u.fiRT]), [['101', '60,00', '', '0,6000'], ['102', '40,00', '20,00', '0,4000']]);
+});
+
+test('certidões: tipo, resultado e datas pelo texto', () => {
+  const a = M.lerCertidao('CNDT', 'CERTIDÃO NEGATIVA DE DÉBITOS TRABALHISTAS ... Expedição: 10/10/2026 ... Validade: 07/04/2027');
+  assert.equal(a.tipo, 'TRAB'); assert.equal(a.res, 'Negativa'); assert.equal(a.validade, '2027-04-07');
+  assert.equal(M.lerCertidao('Protesto', 'Tabelionato de Protesto de Cidade Ocidental ... NADA CONSTA').tipo, 'PROT');
+  assert.equal(M.lerCertidao('', 'CERTIDÃO POSITIVA COM EFEITOS DE NEGATIVA DE DÉBITOS RELATIVOS AOS TRIBUTOS FEDERAIS E À DÍVIDA ATIVA DA UNIÃO').res, 'Positiva com efeito de negativa');
+});
+test('continuidade conta a incorporadora dos campos da incorporação', () => {
+  const R = M.lerMatricula(MAT_A);
+  assert.ok(M.cruzarMatricula(R, {incNome:'JOÃO EXEMPLO'}, []).some(x => x[0] === 'ok' && /Continuidade/.test(x[1])));
 });

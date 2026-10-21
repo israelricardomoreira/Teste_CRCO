@@ -1,11 +1,42 @@
 /* Qualificador CRCO — js/nota.js: etapa 5 · exigências, catálogo e nota devolutiva */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/nota.js'] = '1.3.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/nota.js'] = '1.4.0';
 /* =====================================================================
    5. NOTA DEVOLUTIVA
    ===================================================================== */
 function catalogo(){ return lsGet('qcrco_catalogo', []); }
 function refreshCatalogo(){ const c = catalogo(); $('catExig').innerHTML = c.map(x => `<option value="${esc(x.texto)}">`).join(''); $('catFund').innerHTML = [...new Set(c.map(x => x.fund).filter(Boolean))].map(f => `<option value="${esc(f)}">`).join(''); }
+/* ---------- revisão de texto das exigências e da nota ---------- */
+const REV = {lista:[]};
+function ignoradas(){ return lsGet('qcrco_ignorar', []); }
+async function revisarExigencias(){
+  try { if (!Ortografia.pronto()) { busy(true, 'Carregando o dicionário de português (só na primeira vez)…', 30); await Ortografia.carregar('lib/ortografia/'); ignoradas().forEach(w => Ortografia.adicionar(w)); } }
+  catch (e) { toast('Dicionário indisponível; conferi só as regras do registro (normas, repetições, pontuação).', 'err'); }
+  finally { busy(false); }
+  REV.lista = [];
+  S.exig.forEach((e, i) => Ortografia.revisar(e.texto || '').forEach(r => REV.lista.push(Object.assign({onde:'ex', id:e.id, n:i + 1}, r))));
+  Ortografia.revisar(S.nota || '').filter(r => !r.msg.startsWith('Texto sem ponto')).forEach(r => REV.lista.push(Object.assign({onde:'nota', n:'Nota'}, r)));
+  renderRevisao();
+}
+function renderRevisao(){
+  const L = REV.lista, box = $('revisao');
+  if (!L) { box.innerHTML = ''; return; }
+  box.innerHTML = !L.length ? '<div class="notaprog ok">✓ Revisão: nada encontrado nas exigências e na nota.</div>'
+    : `<div class="rev"><div class="rev-h"><b>Revisão do texto</b> · ${L.length} ponto(s) <button class="btn sm" type="button" data-rev="fechar" style="margin-left:auto">Fechar</button></div>${L.map((r, k) => `<div class="rev-i"><span class="rev-n">${r.onde === 'ex' ? 'Exig. ' + r.n : 'Nota'}</span><span><mark class="${r.ortografia ? 'mk-onus' : 'mk-area'}">${esc(r.trecho || '(fim do texto)')}</mark> ${esc(r.msg)}</span>
+      <span class="rev-s">${(r.sugestoes || (r.troca != null ? [r.troca] : [])).map(s => `<button class="btn sm" type="button" data-rev="ap" data-k="${k}" data-s="${esc(s)}">${esc(s) || '(apagar)'}</button>`).join('')}${r.ortografia ? `<button class="btn sm link" type="button" data-rev="ign" data-k="${k}" title="Não marcar mais esta palavra">ignorar</button>` : ''}${!r.trecho ? `<button class="btn sm" type="button" data-rev="ponto" data-k="${k}">colocar ponto</button>` : ''}</span></div>`).join('')}</div>`;
+}
+function aplicarRevisao(k, s){
+  const r = REV.lista[k]; if (!r) return;
+  const trocar = t => t.slice(0, r.i) + s + t.slice(r.f);
+  if (r.onde === 'ex') { const e = S.exig.find(x => x.id === r.id); if (!e) return; e.texto = s === '.' && !r.trecho ? e.texto.trimEnd() + '.' : trocar(e.texto); }
+  else S.nota = trocar(S.nota);
+  markDirty(); renderNota(); revisarExigencias();
+}
+function concluirAnalise(){
+  if (!S.docs.length && !confirm('Não há documentos no GED. Concluir só com o arquivo da análise (.gori)?')) return;
+  if (S.docs.length) baixarZip();
+  setTimeout(() => { salvarAnalise(); toast('Concluído: ZIP do GED, análise (.gori) e aprendizado baixados. Para retomar, abra o .gori e importe o ZIP.'); }, S.docs.length ? 2500 : 0);
+}
 function renderNota(){
   refreshCatalogo();
   const tot = S.docs.reduce((n, d) => n + d.pageIds.length, 0), faltam = S.docs.filter(d => d.pageIds.map(pageById).filter(Boolean).some(p => !paginaConferida(p)));
@@ -13,7 +44,7 @@ function renderNota(){
     : `<div class="notaprog warn">Páginas ainda sem "✓ Conferida": ${faltam.map(d => { const ps = d.pageIds.map(pageById).filter(Boolean); return `${esc(catNome(d.category))} "${esc(d.name)}" (${ps.filter(paginaConferida).length}/${ps.length})`; }).join('; ')}.</div>`;
   const n = S.exig.length;
   $('exList').innerHTML = n ? S.exig.map((e, i) => `<div class="ex" data-ex="${e.id}"><span class="n">${i + 1}.</span>
-    <div><textarea data-bind="ex:${e.id}:texto" rows="2" aria-label="Exigência ${i + 1}">${esc(e.texto)}</textarea>${e.ref ? `<div class="ref">Origem: ${esc(e.ref)}</div>` : ''}</div>
+    <div><textarea data-bind="ex:${e.id}:texto" rows="2" spellcheck="true" lang="pt-BR" aria-label="Exigência ${i + 1}">${esc(e.texto)}</textarea>${e.ref ? `<div class="ref">Origem: ${esc(e.ref)}</div>` : ''}</div>
     <input data-bind="ex:${e.id}:fund" value="${esc(e.fund)}" list="catFund" placeholder="Fundamento" aria-label="Fundamento da exigência ${i + 1}">
     <div class="ck-act"><button class="btn sm" type="button" data-exmv="-1" aria-label="Subir"${i === 0 ? ' disabled' : ''}>↑</button><button class="btn sm" type="button" data-exmv="1" aria-label="Descer"${i === n - 1 ? ' disabled' : ''}>↓</button><button class="btn sm" type="button" data-excat="1" title="Salvar no meu catálogo">★</button><button class="btn sm danger" type="button" data-exrm="1" aria-label="Excluir exigência">✕</button></div></div>`).join('')
     : '<div class="empty">Nenhuma exigência. Marque itens como "Exigência" no checklist ou use "Apontar exigência" na lupa.</div>';
@@ -40,6 +71,13 @@ function gerarNota(){
 
 
 function bindNota(){
+  $('revBtn').onclick = revisarExigencias;
+  $('concluir').onclick = concluirAnalise;
+  $('revisao').addEventListener('click', e => { const b = e.target.closest('[data-rev]'); if (!b) return; const k = +b.dataset.k, r = REV.lista[k];
+    if (b.dataset.rev === 'fechar') { REV.lista = null; renderRevisao(); }
+    if (b.dataset.rev === 'ap') aplicarRevisao(k, b.dataset.s);
+    if (b.dataset.rev === 'ponto') aplicarRevisao(k, '.');
+    if (b.dataset.rev === 'ign' && r) { const L = ignoradas(); L.push(r.trecho.toLowerCase()); lsSet('qcrco_ignorar', [...new Set(L)].slice(-500)); Ortografia.adicionar(r.trecho.toLowerCase()); revisarExigencias(); } });
   /* Nota */
   $('exAdd').onclick = () => { S.exig.push({id:uid(), texto:'', fund:'', ref:''}); renderNota(); markDirty(); const t = $('exList').querySelectorAll('textarea'); if (t.length) t[t.length - 1].focus(); };
   $('exCatAdd').onclick = () => { const v = $('exCat').value.trim(); if (!v) return; const c = catalogo().find(x => x.texto === v); S.exig.push({id:uid(), texto:v, fund:c ? c.fund : '', ref:'catálogo'}); $('exCat').value = ''; renderNota(); markDirty(); };

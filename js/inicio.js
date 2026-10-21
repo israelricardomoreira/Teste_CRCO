@@ -1,8 +1,8 @@
 /* Qualificador CRCO — js/inicio.js: eventos gerais, atalhos de teclado, conferência de versão e início */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/inicio.js'] = '1.3.0';
-const VERSAO = '1.3.0';
-const ARQUIVOS = ["js/nucleo.js", "js/leitor.js", "js/dominio.js", "js/estado.js", "js/navegacao.js", "js/ged.js", "js/visualizador.js", "js/conferencia.js", "js/matricula.js", "js/checklist.js", "js/incorporacao.js", "js/nota.js", "js/aprendizado.js", "js/inicio.js"];
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/inicio.js'] = '1.4.0';
+const VERSAO = '1.4.0';
+const ARQUIVOS = ["js/nucleo.js", "js/leitor.js", "js/dominio.js", "js/estado.js", "js/navegacao.js", "js/ged.js", "js/visualizador.js", "js/conferencia.js", "js/matricula.js", "js/checklist.js", "js/incorporacao.js", "js/quadrospdf.js", "js/ortografia.js", "js/nota.js", "js/aprendizado.js", "js/inicio.js"];
 /* Confere se todos os arquivos vieram da mesma entrega (evita subir só parte da atualização) */
 function checarVersoes(){
   const reg = window.QUAL_ARQ || {}, ruins = ARQUIVOS.filter(a => reg[a] !== VERSAO);
@@ -54,9 +54,9 @@ function bindGeral(){
     if (!inField && curStep === 'conf' && LP && !(JAN.win && !JAN.win.closed) && LP.tecla(e)) { e.preventDefault(); return; }
     if (!inField && curStep === 'ged' && e.key === 'Delete' && sel.size) { if (confirm(`Remover ${sel.size} página(s) selecionada(s)?`)) { S.pages = S.pages.filter(p => !sel.has(p.id)); sel.clear(); renderGED(); } return; }
     const t = e.target;
-    if (t.dataset && t.dataset.r !== undefined && ['Enter','ArrowDown','ArrowUp'].includes(e.key)) {
+    if (t.dataset && t.dataset.r !== undefined && t.tagName !== 'TEXTAREA' && ['Enter','ArrowDown','ArrowUp'].includes(e.key)) {
       e.preventDefault(); const tb = t.closest('table'), r = +t.dataset.r + (e.key === 'ArrowUp' ? -1 : 1);
-      const n = tb.querySelector(`input[data-r="${r}"][data-c="${t.dataset.c}"]`); if (n) { n.focus(); n.select(); }
+      const n = tb.querySelector(`[data-r="${r}"][data-c="${t.dataset.c}"]`); if (n) { n.focus(); n.select(); }
     }
   });
   window.addEventListener('beforeunload', e => { if (dirty || S.pages.length) { e.preventDefault(); e.returnValue = ''; } });
@@ -74,6 +74,6 @@ function init(){
   $('dgCat').innerHTML = CATS.map(c => `<option value="${c}">${catNome(c)}</option>`).join('');
   if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
   else $('libWarn').hidden = false;
-  refreshHist(); bindGeral(); bindGED(); bindVisualizador(); bindConferencia(); bindMatricula(); bindChecklist(); bindIncorporacao(); bindNota(); bindAprendizado(); bindMatCard(); renderAll(); checkAutosave();
+  refreshHist(); bindGeral(); bindGED(); bindVisualizador(); bindConferencia(); bindMatricula(); bindChecklist(); bindIncorporacao(); bindQuadrosPDF(); bindNota(); bindAprendizado(); bindMatCard(); bindRetomar(); bindTextoMatricula(); renderAll(); checkAutosave();
 }
 document.addEventListener('DOMContentLoaded', init);

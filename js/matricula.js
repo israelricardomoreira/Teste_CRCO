@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/matricula.js: leitura automática da matrícula (preenche a ficha e mostra titular, atos e ônus) */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.3.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.4.0';
 
 /* Texto da matrícula: documento MATRICULA do GED (ou o que está aberto na Conferência), senão o usuário cola */
 function matTextoDoGED(){
@@ -48,15 +48,15 @@ function aplicarMatricula(texto, fonteGED = $('dlgMat')._fonte){
   Object.entries(valores).forEach(([k, v]) => {
     if (!v) return;
     const atual = String(S.campos[k] || '').trim();
-    registrarSugestao('c:' + k, v, {regra:'matricula.' + k, fonte, contexto:trecho(texto, k === 'confrontacao' ? R.confrontacoes.map(c => c.com)[0] : k === 'regAnterior' ? R.ultimoAto.split('-').slice(0, 2).join('-') : v), naoAplicado:!!atual});
+    registrarSugestao('c:' + k, v, {regra:'matricula.' + k, fonte, contexto:trecho(texto, k === 'confrontacao' ? R.confrontacoes.map(c => c.com)[0] : k === 'regAnterior' ? R.ultimoAtoCompleto : v), naoAplicado:!!atual});
     if (!atual) {
-      const busca = k === 'confrontacao' ? 'confrontando' : k === 'regAnterior' ? R.ultimoAto.split('-').slice(0, 2).join('-') : k === 'descricao' ? R.imovel.split(/\s+/).slice(0, 4).join(' ') : v;
+      const busca = k === 'confrontacao' ? 'confrontando' : k === 'regAnterior' ? R.ultimoAtoCompleto : k === 'descricao' ? R.imovel.split(/\s+/).slice(0, 4).join(' ') : v;
       const onde = f ? localizarNasPaginas(f.pgs, busca) : null;
       S.campos[k] = v; S.src['c:' + k] = {pageId:onde ? onde.pageId : pid, label:rotulo, reg:onde ? onde.reg : null}; S.ok['c:' + k] = false; preenchidos.push(k);
     }
     else if (atual !== v) mantidos.push(k);
   });
-  S.mat = {R, fonte:rotulo, lidaEm:new Date().toISOString(), ctxTitular:R.titular ? trecho(texto, R.titular.nome) : '', fonteTipo:fonte.tipo};
+  S.mat = {R, texto, fonte:rotulo, lidaEm:new Date().toISOString(), ctxTitular:R.titular ? trecho(texto, R.titular.nome) : '', fonteTipo:fonte.tipo};
   markDirty(); renderConfForm(); refreshCertStatus(); renderMatCard();
   const nomes = k => (CAMPOS.find(c => c.k === k) || {l:k}).l;
   toast(`Matrícula lida: ${preenchidos.length} campo(s) preenchido(s)` + (mantidos.length ? `; mantive o que já estava em ${mantidos.map(nomes).join(', ')} (veja o resumo).` : '. Confira e marque "conferido".'));
@@ -77,7 +77,7 @@ function matResumoHTML(){
     .map(([k, v]) => ['warn', `${(CAMPOS.find(c => c.k === k) || {l:k}).l}: na ficha "${S.campos[k]}", na matrícula "${v}".`]);
   const temParte = T && S.partes.some(p => (T.doc && onlyDigits(p.doc) === onlyDigits(T.doc)) || String(p.nome || '').toUpperCase() === String(T.nome).toUpperCase());
   return `<h3 class="grp-h">Matrícula nº ${esc(R.numero || '—')} <span class="muted" style="font-weight:400;text-transform:none;letter-spacing:0">· ${esc(S.mat.fonte)}</span>
-      <button class="btn sm" type="button" data-mat="ler" style="margin-left:auto">Ler de novo</button></h3>
+      ${S.mat.texto ? '<button class="btn sm" type="button" data-mattxt="" style="margin-left:auto">Ver o texto lido</button>' : ''}<button class="btn sm" type="button" data-mat="ler"${S.mat.texto ? '' : ' style="margin-left:auto"'}>Ler de novo</button></h3>
     <div class="fgrid" style="margin-bottom:8px">
       <div class="fld"><label>Titular atual</label><div><b>${esc(T ? (T.nomeAtual || T.nome) : '—')}</b>${T && T.doc ? `<br><small>${esc(T.doc)} · ${docStatus(T.doc)}</small>` : ''}${T ? `<br><small class="muted">desde ${esc(T.ato)}</small>` : ''}</div>
         ${T && !temParte ? `<button class="btn sm" type="button" data-mat="parte" style="margin-top:4px">+ Adicionar como parte</button>` : ''}</div>
@@ -98,7 +98,7 @@ function renderMatCard(){
     const R = S.mat.R, T = R.titular;
     c.className = 'matcard ok';
     c.innerHTML = `<span class="mt">✓ Matrícula ${esc(R.numero || '')}</span><span class="ms">${T ? 'Titular: <b>' + esc(T.nomeAtual || T.nome) + '</b> (' + esc(T.ato) + ')' : ''} · ${R.atos.length} ato(s) · ${R.onusAbertos.length ? '<b class="errt">' + R.onusAbertos.length + ' ônus em aberto</b>' : 'sem ônus em aberto'} · ${esc(fmt(R.areaNum))} m²</span>
-      <span style="margin-left:auto;display:flex;gap:8px"><button class="btn sm" type="button" data-mc="ver">Ver na Conferência</button><button class="btn sm" type="button" data-mc="colar">Ler de novo</button></span>`;
+      <span style="margin-left:auto;display:flex;gap:8px">${S.mat.texto ? '<button class="btn sm" type="button" data-mc="txt">Ver o texto lido</button>' : ''}<button class="btn sm" type="button" data-mc="ver">Ver na Conferência</button><button class="btn sm" type="button" data-mc="colar">Ler de novo</button></span>`;
   } else {
     c.className = 'matcard';
     c.innerHTML = `<span class="mt">1º · Matrícula do imóvel</span><span class="ms">${doc ? `O documento "${esc(doc.name)}" ainda não foi lido.` : 'Comece por ela: o programa lê a matrícula e já preenche imóvel, titular, ônus e confrontações.'}</span>
@@ -125,6 +125,7 @@ function bindMatCard(){
   $('matCard').addEventListener('click', e => {
     const b = e.target.closest('[data-mc]'); if (!b) return;
     if (b.dataset.mc === 'imp') $('fileMat').click();
+    if (b.dataset.mc === 'txt') abrirTextoMatricula('');
     if (b.dataset.mc === 'colar') abrirLeituraMatricula();
     if (b.dataset.mc === 'ler') { const d = S.docs.find(x => x.category === 'MATRICULA'); if (d) lerMatriculaDoDoc(d); }
     if (b.dataset.mc === 'ver') { const d = S.docs.find(x => x.category === 'MATRICULA'); if (d) { CV.docId = d.id; CV.i = 0; } goStep('conf'); }
@@ -147,4 +148,33 @@ function bindMatricula(){
       markDirty(); renderConfForm(); toast('Titular adicionado às partes. Ajuste o papel se precisar.');
     }
   });
+}
+
+/* ---------- texto da matrícula com o que o programa leu em destaque ---------- */
+function abrirTextoMatricula(alvo){
+  if (!S.mat || !S.mat.texto) { toast('Não há texto guardado desta matrícula (leia de novo para guardar).', 'err'); return; }
+  const T = S.mat.texto, R = S.mat.R, faixas = [];
+  const marcar = (val, cls, tit, todas) => { if (!val) return; const v = String(val); let i = T.indexOf(v); while (i >= 0) { faixas.push([i, i + v.length, cls, tit]); if (!todas) break; i = T.indexOf(v, i + v.length); } };
+  marcar(R.imovel, 'mk-imovel', 'Descrição do imóvel (campo Descrição)');
+  if (R.area) { const i0 = T.indexOf(R.imovel); const i = T.indexOf(R.area, Math.max(0, i0)); if (i >= 0) faixas.push([i, i + R.area.length, 'mk-area', 'Área do terreno']); }
+  R.confrontacoes.forEach(c => { const i = T.indexOf(c.com); if (i >= 0) faixas.push([i, i + c.com.length, 'mk-conf', 'Confrontação: ' + c.lado]); const j = T.indexOf(c.med, Math.max(0, i)); if (j >= 0) faixas.push([j, j + c.med.length, 'mk-conf', 'Medida: ' + c.lado]); });
+  if (R.proprietarioInicial) marcar(R.proprietarioInicial.nome, 'mk-prop', 'Proprietário na abertura');
+  if (R.titular) { marcar(R.titular.nome, 'mk-titular', 'Titular atual (' + R.titular.ato + ')', true); marcar(R.titular.doc, 'mk-titular', 'CPF/CNPJ do titular', true); if (R.titular.nomeAtual) marcar(R.titular.nomeAtual, 'mk-titular', 'Nome atual do titular'); }
+  marcar(R.cep, 'mk-cep', 'CEP'); marcar(R.cci, 'mk-cep', 'CCI'); marcar(R.inscricao, 'mk-cep', 'Inscrição');
+  R.atos.forEach(a => { const lab = a.rot.replace('Av', '(?:AV|Av|av)').replace('R-', 'R-'); const m = T.match(new RegExp('(^|\\n)[\\s\\-–_=]*(' + lab.replace('-', '\\s*-\\s*') + '\\s*-\\s*' + String(R.numero).replace(/\./g, '\\.') + ')')); if (m) { const i = m.index + m[1].length + m[0].slice(m[1].length).indexOf(m[2]); faixas.push([i, i + m[2].length, a.onus ? (a.cancelado ? 'mk-onusok' : 'mk-onus') : 'mk-ato', `${a.rot} · ${a.natureza}${a.onus ? (a.cancelado ? ' · cancelado por ' + a.canceladoPor : ' · ÔNUS EM ABERTO') : ''}`]); }
+    if (a.natureza) { const k = T.indexOf(a.natureza, m ? m.index : 0); if (k >= 0) faixas.push([k, k + a.natureza.length, a.onus ? (a.cancelado ? 'mk-onusok' : 'mk-onus') : 'mk-ato', a.rot + ' · natureza']); } });
+  faixas.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
+  let html = '', pos = 0;
+  faixas.forEach(([i, j, cls, tit]) => { if (i < pos) return; html += esc(T.slice(pos, i)) + `<mark class="${cls}" title="${esc(tit)}">${esc(T.slice(i, j))}</mark>`; pos = j; });
+  html += esc(T.slice(pos));
+  $('matTxtView').innerHTML = html;
+  const dlg = $('dlgMatTxt'); if (!dlg.open) dlg.showModal();
+  const mapa = {'c:areaTerreno':'mk-area', 'c:descricao':'mk-imovel', 'c:confrontacao':'mk-conf', 'c:cep':'mk-cep', 'c:matricula':'mk-ato', 'c:regAnterior':'mk-ato'};
+  const cls = mapa[alvo]; let el = cls ? $('matTxtView').querySelector('.' + cls) : null;
+  if (alvo === 'c:regAnterior') { const all = $('matTxtView').querySelectorAll('.mk-ato'); el = all[all.length - 1] || el; }
+  if (el) { el.classList.add('mk-foco'); setTimeout(() => el.scrollIntoView({block:'center'}), 50); }
+}
+function bindTextoMatricula(){
+  document.addEventListener('click', e => { const b = e.target.closest('[data-mattxt]'); if (b) abrirTextoMatricula(b.dataset.mattxt); });
+  $('matTxtFechar').onclick = () => $('dlgMatTxt').close();
 }

@@ -7,15 +7,15 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231d4f91'/%3E%3Ctext x='16' y='21' font-family='Arial' font-size='13' font-weight='700' fill='white' text-anchor='middle'%3EQR%3C/text%3E%3C/svg%3E">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<link rel="stylesheet" href="css/estilo.css?v=1.3.0">
-<link rel="stylesheet" href="css/leitor.css?v=1.3.0">
+<link rel="stylesheet" href="css/estilo.css?v=1.4.0">
+<link rel="stylesheet" href="css/leitor.css?v=1.4.0">
 </head>
 <body>
 <a class="skip" href="#main">Pular para o conteúdo</a>
 
 <header class="app-hdr">
   <div class="brand"><span class="logo" aria-hidden="true">QR</span>
-    <div><div class="brand-t">Qualificador CRCO</div><div class="brand-s">Registro de Imóveis · Cidade Ocidental/GO · v1.3.0</div></div></div>
+    <div><div class="brand-t">Qualificador CRCO</div><div class="brand-s">Registro de Imóveis · Cidade Ocidental/GO · v1.4.0</div></div></div>
   <div class="meta">
     <label for="mProt">Protocolo<input id="mProt" data-bind="m:protocolo" autocomplete="off"></label>
     <label for="mTipo">Tipo de ato<select id="mTipo" data-bind="m:tipoAto"></select></label>
@@ -43,7 +43,7 @@
     <div class="matcard" id="matCard"></div><input type="file" id="fileMat" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff" multiple hidden>
     <div class="panel" id="pagesPanel">
       <div class="panel-h"><h2>Páginas</h2><span class="count" id="pgCount">0</span>
-        <div class="row" style="margin-left:auto"><button class="btn sm" id="btnImport" type="button" title="Alt+I">+ Importar</button><input type="file" id="fileIn" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff" multiple hidden></div></div>
+        <div class="row" style="margin-left:auto"><button class="btn sm" id="btnImport" type="button" title="Alt+I">+ Importar</button><input type="file" id="fileIn" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.zip" multiple hidden></div></div>
       <div class="panel-b dropzone" id="pagesZone"><div class="pgrid" id="pagesGrid"></div></div>
       <div class="selbar" id="selBar" hidden><span id="selTxt"></span><button class="btn sm primary" id="btnGroup" type="button" title="Alt+A">Agrupar em documento</button><button class="btn sm" id="btnSelAll" type="button">Sel. tudo</button><button class="btn sm" id="btnClearSel" type="button">Limpar</button></div>
     </div>
@@ -60,8 +60,8 @@
     <div class="cv-gutter" id="cvGutter" role="separator" aria-orientation="vertical" aria-label="Arraste para mudar o tamanho do documento e da ficha (duplo clique volta ao padrão)" title="Arraste para ajustar · duplo clique volta ao padrão"></div>
     <div class="panel cv-ficha">
       <div class="cv-janela" id="cvJanela" hidden>⧉ O documento está aberto em outra janela. <button class="btn sm" id="cvVoltar" type="button" style="margin-left:auto">Trazer de volta para cá</button></div>
-      <div class="panel-h"><h2>Ficha de qualificação</h2><span class="count" id="confProg"></span><button class="btn sm" id="cMat" type="button" style="margin-left:auto">Ler matrícula</button></div>
-      <div class="panel-b" id="confForm"></div>
+      <div class="panel-h"><h2>Ficha de qualificação</h2><span class="count" id="confProg"></span><span class="seg" style="margin-left:auto"><button type="button" id="vFicha" aria-pressed="true">Ficha</button><button type="button" id="vResumo" aria-pressed="false">Resumo</button></span><button class="btn sm" id="cMat" type="button">Ler matrícula</button></div>
+      <div class="panel-b" id="confForm"></div><div class="panel-b" id="confResumo" hidden></div>
     </div>
   </section>
 
@@ -82,7 +82,8 @@
 
   <!-- 4. INCORPORAÇÃO -->
   <section class="step" id="step-inc" aria-label="Incorporação">
-    <nav class="subnav" aria-label="Seções da incorporação"><a class="btn sm" href="#incCfgCard">Configuração</a><a class="btn sm" href="#q1Card">Quadro I</a><a class="btn sm" href="#q2Card">Quadro II</a><a class="btn sm" href="#q3Card">Quadro III</a><a class="btn sm" href="#ivbCard">IV-B e auditoria</a><a class="btn sm" href="#minCard">Minuta</a></nav>
+    <nav class="subnav" aria-label="Seções da incorporação"><a class="btn sm" href="#nbrCard">Importar PDF</a><a class="btn sm" href="#incCfgCard">Configuração</a><a class="btn sm" href="#q1Card">Quadro I</a><a class="btn sm" href="#q2Card">Quadro II</a><a class="btn sm" href="#q3Card">Quadro III</a><a class="btn sm" href="#ivbCard">IV-B e auditoria</a><a class="btn sm" href="#minCard">Minuta</a></nav>
+    <section class="card" id="nbrCard"><h2>Importar dos quadros do RT (PDF)</h2><div id="nbrImp"></div></section>
     <section class="card" id="incCfgCard"><h2>Configuração do empreendimento</h2><p class="muted">Defina pavimentos e numeração. "Qtd. idênticos" segue a coluna de pavimentos idênticos do Quadro I da NBR.</p><div id="incCfg"></div></section>
     <section class="card" id="q1Card"><h2>Quadro I — áreas por pavimento</h2><p class="muted">Lance os valores de <b>um</b> pavimento de cada tipo; os totais multiplicam pela quantidade. Pode colar do Excel (Ctrl+V numa célula).</p><div class="tbl-wrap"><table class="q" id="tQ1"></table></div></section>
     <section class="card" id="q2Card"><h2>Quadro II — áreas das unidades</h2><p class="muted">Lance as áreas de cada unidade. O coeficiente (31) é calculado; se o quadro do RT trouxer o seu, lance em "Coef. do RT" para conferir.</p>
@@ -108,11 +109,12 @@
   <!-- 5. NOTA -->
   <section class="step" id="step-nota" aria-label="Nota devolutiva">
     <section class="card"><h2>Exigências</h2><p class="muted">Itens marcados como "Exigência" no checklist entram aqui automaticamente. Edite, reordene ou adicione do catálogo.</p>
-      <div class="row" style="margin-bottom:8px"><button class="btn" id="exAdd" type="button">+ Nova exigência</button><input id="exCat" list="catExig" placeholder="Buscar no meu catálogo de exigências…" style="max-width:420px"><button class="btn" id="exCatAdd" type="button">Adicionar do catálogo</button></div>
-      <div id="notaProg"></div><div id="exList"></div></section>
+      <div class="row" style="margin-bottom:8px"><button class="btn" id="exAdd" type="button">+ Nova exigência</button><button class="btn" id="revBtn" type="button" title="Ortografia (português) e regras do registro: NBR 12.721, Lei 4.591/64, palavras repetidas, pontuação">✓ Revisar texto</button><input id="exCat" list="catExig" placeholder="Buscar no meu catálogo de exigências…" style="max-width:420px"><button class="btn" id="exCatAdd" type="button">Adicionar do catálogo</button></div>
+      <div id="notaProg"></div><div id="revisao"></div><div id="exList"></div></section>
     <section class="card"><h2>Nota devolutiva</h2><p class="muted">Gerada a partir das exigências. Pode editar livremente antes de copiar.</p>
       <div class="row" style="margin-bottom:8px"><button class="btn" id="notaGen" type="button">Gerar / atualizar texto</button><button class="btn" id="notaCopy" type="button">Copiar nota</button></div>
-      <textarea id="notaTxt" aria-label="Texto da nota devolutiva"></textarea></section>
+      <textarea id="notaTxt" spellcheck="true" lang="pt-BR" aria-label="Texto da nota devolutiva"></textarea></section>
+    <section class="card"><h2>Concluir a análise</h2><p class="muted">Baixa de uma vez o <b>ZIP do GED</b> (documentos organizados), o arquivo da análise <b>.gori</b> e o arquivo de aprendizado. Para retomar quando o título voltar: <b>Abrir análise</b> → escolha o .gori → importe o ZIP.</p><button class="btn primary" id="concluir" type="button">Concluir: baixar GED + análise</button></section>
   </section>
 </main>
 
@@ -169,29 +171,43 @@
     <div class="dlg-act"><button class="btn primary" value="ok" type="submit">Ler e preencher</button><button class="btn" value="cancel" type="submit" formnovalidate>Cancelar</button></div>
   </form>
 </dialog>
+<dialog id="dlgMatTxt" aria-labelledby="dmtTitle" style="width:min(980px,96vw)">
+  <div class="row"><h2 id="dmtTitle" style="margin:0">Texto da matrícula · o que o programa leu</h2><button class="btn sm" id="matTxtFechar" type="button" style="margin-left:auto">Fechar</button></div>
+  <p class="mk-leg"><mark class="mk-imovel">imóvel</mark> <mark class="mk-area">área</mark> <mark class="mk-conf">confrontações</mark> <mark class="mk-prop">proprietário na abertura</mark> <mark class="mk-titular">titular atual</mark> <mark class="mk-ato">atos</mark> <mark class="mk-onus">ônus em aberto</mark> <mark class="mk-onusok">ônus cancelado</mark> <mark class="mk-cep">CEP · CCI · inscrição</mark> · passe o mouse para ver o campo</p>
+  <div id="matTxtView" class="mattxt"></div>
+</dialog>
+<dialog id="dlgRetomar" aria-labelledby="drTitle">
+  <h2 id="drTitle">Retomar a análise</h2>
+  <p class="muted">Esta análise tinha estes documentos no GED. Importe o <b>ZIP do GED</b> (ou os PDFs dele) para voltar a ver as páginas com as suas marcações:</p>
+  <ul id="rtLista" style="font-size:13px;margin:8px 0 8px 18px;max-height:30vh;overflow:auto"></ul>
+  <input type="file" id="rtFile" accept=".zip,.pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff" multiple hidden>
+  <div class="dlg-act"><button class="btn primary" type="button" id="rtImp">Importar ZIP ou PDFs do GED</button><button class="btn" type="button" id="rtSem">Continuar sem o GED</button></div>
+</dialog>
 <datalist id="histGED"></datalist><datalist id="catExig"></datalist><datalist id="catFund"></datalist>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <div class="busy" id="busy" hidden><div class="busy-box" role="status"><strong id="busyMsg">Processando…</strong><div class="bar"><i id="busyBar"></i></div></div></div>
 
-<script src="lib/pdf.min.js?v=1.3.0"></script>
-<script src="lib/pdf-lib.min.js?v=1.3.0"></script>
-<script src="lib/jszip.min.js?v=1.3.0"></script>
-<script src="lib/pako_inflate.min.js?v=1.3.0"></script>
-<script src="lib/utif.js?v=1.3.0"></script>
-<script src="motor.js?v=1.3.0"></script>
-<script src="js/nucleo.js?v=1.3.0"></script>
-<script src="js/leitor.js?v=1.3.0"></script>
-<script src="js/dominio.js?v=1.3.0"></script>
-<script src="js/estado.js?v=1.3.0"></script>
-<script src="js/navegacao.js?v=1.3.0"></script>
-<script src="js/ged.js?v=1.3.0"></script>
-<script src="js/visualizador.js?v=1.3.0"></script>
-<script src="js/conferencia.js?v=1.3.0"></script>
-<script src="js/matricula.js?v=1.3.0"></script>
-<script src="js/checklist.js?v=1.3.0"></script>
-<script src="js/incorporacao.js?v=1.3.0"></script>
-<script src="js/nota.js?v=1.3.0"></script>
-<script src="js/aprendizado.js?v=1.3.0"></script>
-<script src="js/inicio.js?v=1.3.0"></script>
+<script src="lib/pdf.min.js?v=1.4.0"></script>
+<script src="lib/pdf-lib.min.js?v=1.4.0"></script>
+<script src="lib/jszip.min.js?v=1.4.0"></script>
+<script src="lib/pako_inflate.min.js?v=1.4.0"></script>
+<script src="lib/utif.js?v=1.4.0"></script>
+<script src="motor.js?v=1.4.0"></script>
+<script src="js/nucleo.js?v=1.4.0"></script>
+<script src="js/leitor.js?v=1.4.0"></script>
+<script src="js/dominio.js?v=1.4.0"></script>
+<script src="js/estado.js?v=1.4.0"></script>
+<script src="js/navegacao.js?v=1.4.0"></script>
+<script src="js/ged.js?v=1.4.0"></script>
+<script src="js/visualizador.js?v=1.4.0"></script>
+<script src="js/conferencia.js?v=1.4.0"></script>
+<script src="js/matricula.js?v=1.4.0"></script>
+<script src="js/checklist.js?v=1.4.0"></script>
+<script src="js/incorporacao.js?v=1.4.0"></script>
+<script src="js/quadrospdf.js?v=1.4.0"></script>
+<script src="js/ortografia.js?v=1.4.0"></script>
+<script src="js/nota.js?v=1.4.0"></script>
+<script src="js/aprendizado.js?v=1.4.0"></script>
+<script src="js/inicio.js?v=1.4.0"></script>
 </body>
 </html>

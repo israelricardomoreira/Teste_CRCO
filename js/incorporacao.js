@@ -1,11 +1,11 @@
 /* Qualificador CRCO — js/incorporacao.js: etapa 4 · quadros da NBR 12721, IV-B, auditoria e minuta */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/incorporacao.js'] = '1.3.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/incorporacao.js'] = '1.4.0';
 /* =====================================================================
    4. INCORPORAÇÃO (NBR 12721)
    ===================================================================== */
 const blockName = (b, tipo) => tipo === 'Números' || tipo === 'Numeros' ? String(b) : (b <= 26 ? String.fromCharCode(64 + b) : 'B' + b);
-function renderInc(){ renderIncCfg(); renderQ1(); renderQ2(); renderQ3(); renderMinCfg(); recalcInc(); }
+function renderInc(){ renderImportNBR(); renderIncCfg(); renderQ1(); renderQ2(); renderQ3(); renderMinCfg(); recalcInc(); }
 function renderIncCfg(){
   const I = S.inc;
   $('incCfg').innerHTML = `<div class="fgrid" style="margin-bottom:12px">
@@ -37,19 +37,28 @@ function genQuadros(){
 }
 const Q1COLS = [['nome','Pavimento\n(1)','t'],['qtd','Qtd.\nidênt.','e'],['v2','CP\n(2)','e'],['v3','Real dif./desc.\n(3)','e'],['v4','Equiv.\n(4)','e'],['c5','Real\n(5)','c'],['c6','Equiv.\n(6)','c'],['v7','CP\n(7)','e'],['v8','Real dif./desc.\n(8)','e'],['v9','Equiv.\n(9)','e'],['c10','Real\n(10)','c'],['c11','Equiv.\n(11)','c'],['v12','CP\n(12)','e'],['v13','Real dif./desc.\n(13)','e'],['v14','Equiv.\n(14)','e'],['c15','Real\n(15)','c'],['c16','Equiv.\n(16)','c'],['c17','Real\n(17)','k'],['c18','Equiv.\n(18)','k']];
 const Q2COLS = [['nome','Unidade\n(19)','t'],['pcd','PCD','b'],['v20','CP\n(20)','e'],['v21','Real dif./desc.\n(21)','e'],['v22','Equiv.\n(22)','e'],['c23','Real\n(23)','c'],['c24','Equiv.\n(24)','c'],['v25','CP\n(25)','e'],['v26','Real dif./desc.\n(26)','e'],['v27','Equiv.\n(27)','e'],['c28','Real\n(28)','c'],['c29','Equiv.\n(29)','c'],['c30','Equiv. total\n(30)','k'],['c31','Calculado\n(31)','k'],['fiRT','Do RT\n(31)','e'],['c32','CP\n(32)','c'],['c33','Real\n(33)','c'],['c34','Equiv.\n(34)','c'],['c35','Real\n(35)','c'],['c36','Equiv.\n(36)','c'],['c37','Real\n(37)','k'],['c38','Equiv.\n(38)','k'],['acess','Acessória\n(IV-B C)','e'],['comp','Composição da unidade','w']];
+/* casas decimais por coluna (como o RT escreveu); a 31 segue a precisão do coeficiente */
+function colNum(k){ if (k === 'fiRT') return 31; const m = String(k).match(/^[vc](\d+)$/); return m ? +m[1] : null; }
+function casa(n){ if (n === 31) return Math.max(4, Math.min(8, parseInt(S.inc.precFI, 10) || 6)); const c = (S.inc.casas || {})[n]; return c == null ? 2 : +c; }
+function fmtCol(n, v){ return fmt(v, casa(n)); }
 function gridHTML(cols, rows, prefix, groups){
-  let h = `<thead><tr>${groups.map(([t, n]) => `<th colspan="${n}">${t}</th>`).join('')}</tr><tr>${cols.map(c => `<th>${esc(c[1])}</th>`).join('')}</tr></thead><tbody>`;
+  const selCasa = (k, t) => { const n = colNum(k); if (n == null || n === 31 || !'eck'.includes(t)) return ''; const c = casa(n);
+    return `<select class="casa" data-casa="${n}" title="Casas decimais da coluna ${n}" aria-label="Casas decimais da coluna ${n}">${[0,1,2,3,4,5,6].map(o => `<option${o === c ? ' selected' : ''}>${o}</option>`).join('')}</select>`; };
+  let h = `<thead><tr>${groups.map(([t, n]) => `<th colspan="${n}">${t}</th>`).join('')}</tr><tr>${cols.map(c => `<th>${esc(c[1])}${selCasa(c[0], c[2]) ? '<br>' + selCasa(c[0], c[2]) : ''}</th>`).join('')}</tr></thead><tbody>`;
   rows.forEach((r, ri) => {
     let ei = 0;
     h += '<tr>' + cols.map(([k, , t]) => {
-      if (t === 'c' || t === 'k') return `<td class="c${t === 'k' ? ' k' : ''}" id="${prefix}c_${ri}_${k}">0,00</td>`;
+      if (t === 'c' || t === 'k') return `<td class="c${t === 'k' ? ' k' : ''}" id="${prefix}c_${ri}_${k}">0</td>`;
       if (t === 'b') return `<td style="text-align:center"><input type="checkbox" data-bind="${prefix}:${r.id}:${k}"${r[k] ? ' checked' : ''} aria-label="Unidade PCD"></td>`;
-      const cls = t === 't' ? ' class="t"' : t === 'w' ? ' class="w"' : '';
+      const rot = esc(cols.find(c => c[0] === k)[1].replace('\n', ' ')) + ' — linha ' + (ri + 1);
+      if (t === 'w') return `<td><textarea class="comp" rows="2" data-bind="${prefix}:${r.id}:${k}" data-r="${ri}" data-c="${ei++}" id="${prefix}i_${ri}_${k}" aria-label="${rot}">${esc(r[k])}</textarea></td>`;
+      const cls = t === 't' ? ' class="t"' : '';
       const pre = (k === 'nome' && r.bloco) ? `<span class="blk">Bl. ${esc(r.bloco)}</span>` : '';
-      return `<td style="white-space:nowrap">${pre}<input${cls} data-bind="${prefix}:${r.id}:${k}" data-r="${ri}" data-c="${ei++}" id="${prefix}i_${ri}_${k}" value="${esc(r[k])}" inputmode="${t === 'e' ? 'decimal' : 'text'}" aria-label="${esc(cols.find(c => c[0] === k)[1].replace('\n', ' '))} — linha ${ri + 1}"></td>`;
+      const n = colNum(k);
+      return `<td style="white-space:nowrap">${pre}<input${cls} data-bind="${prefix}:${r.id}:${k}" data-r="${ri}" data-c="${ei++}"${n ? ` data-col="${n}"` : ''} id="${prefix}i_${ri}_${k}" value="${esc(r[k])}" inputmode="${t === 'e' ? 'decimal' : 'text'}" aria-label="${rot}"></td>`;
     }).join('') + '</tr>';
   });
-  h += `</tbody><tfoot><tr>${cols.map(([k, , t], i) => i === 0 ? '<td style="text-align:left">TOTAIS</td>' : (t === 'b' || t === 't' || t === 'w') ? '<td></td>' : `<td id="${prefix}t_${k}">0,00</td>`).join('')}</tr></tfoot>`;
+  h += `</tbody><tfoot><tr>${cols.map(([k, , t], i) => i === 0 ? '<td style="text-align:left">TOTAIS</td>' : (t === 'b' || t === 't' || t === 'w') ? '<td></td>' : `<td id="${prefix}t_${k}">0</td>`).join('')}</tr></tfoot>`;
   return h;
 }
 function renderQ1(){ $('tQ1').innerHTML = S.inc.q1.length ? gridHTML(Q1COLS, S.inc.q1, 'q1', [['',2],['Área privativa',5],['Comum — divisão não proporcional',5],['Comum — divisão proporcional',5],['Área do pavimento',2]]) : '<tbody><tr><td class="empty">Configure os pavimentos e clique em "Gerar Quadros I e II".</td></tr></tbody>'; }
@@ -79,22 +88,28 @@ function renderQ3(){
 }
 function calcInc(){ return Motor.calcInc(S.inc); }
 function setTxt(id, t){ const e = $(id); if (e) e.textContent = t; }
+function marcar(el, ok){ if (!el) return; el.classList.toggle('mat', ok === true); el.classList.toggle('mis', ok === false); }
 function recalcInc(){
-  const R = calcInc(), p = R.p;
-  R.q1.forEach((x, ri) => { [5,6,10,11,15,16,17,18].forEach(n => setTxt(`q1c_${ri}_c${n}`, fmt(x.c[n]))); });
+  const R = calcInc(), p = R.p, tol = .015;
+  R.q1.forEach((x, ri) => { [5,6,10,11,15,16,17,18].forEach(n => { setTxt(`q1c_${ri}_c${n}`, fmtCol(n, x.c[n]));
+    const l = x.r.lido && x.r.lido[n]; marcar($(`q1c_${ri}_c${n}`), l == null ? null : Math.abs(parseBR(l) - x.c[n]) <= tol); }); });
   R.q2.forEach((x, ri) => {
-    [23,24,28,29,30,32,33,34,35,36,37,38].forEach(n => setTxt(`q2c_${ri}_c${n}`, fmt(x.c[n])));
+    [23,24,28,29,30,32,33,34,35,36,37,38].forEach(n => { setTxt(`q2c_${ri}_c${n}`, fmtCol(n, x.c[n]));
+      const l = x.r.lido && x.r.lido[n]; marcar($(`q2c_${ri}_c${n}`), l == null ? null : Math.abs(parseBR(l) - x.c[n]) <= tol); });
     setTxt(`q2c_${ri}_c31`, fmt(x.fi, p));
-    const rt = $(`q2i_${ri}_fiRT`); if (rt) { const has = String(x.r.fiRT || '').trim() !== ''; rt.classList.toggle('mis', has && Math.abs(parseBR(x.r.fiRT) - x.fi) > 0.6 * 10 ** -p); rt.classList.toggle('mat', has && Math.abs(parseBR(x.r.fiRT) - x.fi) <= 0.6 * 10 ** -p); }
+    const rt = $(`q2i_${ri}_fiRT`); if (rt) { const has = String(x.r.fiRT || '').trim() !== ''; marcar(rt, !has ? null : Math.abs(parseBR(x.r.fiRT) - x.fi) <= 0.6 * 10 ** -p); }
   });
-  for (let i = 2; i <= 18; i++) setTxt('q1t_' + (i === 2 || i === 3 || i === 4 || i === 7 || i === 8 || i === 9 || i === 12 || i === 13 || i === 14 ? 'v' : 'c') + i, fmt(R.T1[i]));
+  for (let i = 2; i <= 18; i++) setTxt('q1t_' + ([2,3,4,7,8,9,12,13,14].includes(i) ? 'v' : 'c') + i, fmtCol(i, R.T1[i]));
   setTxt('q1t_qtd', String(R.q1.reduce((s, x) => s + x.qtd, 0)));
-  for (let i = 20; i <= 38; i++) { const k = [20,21,22,25,26,27].includes(i) ? 'v' + i : 'c' + i; setTxt('q2t_' + k, i === 31 ? fmt(R.q2.reduce((s, x) => s + x.fi, 0), p) : fmt(R.T2[i])); }
+  for (let i = 20; i <= 38; i++) { const k = [20,21,22,25,26,27].includes(i) ? 'v' + i : 'c' + i; setTxt('q2t_' + k, i === 31 ? fmt(R.q2.reduce((s, x) => s + x.fi, 0), p) : fmtCol(i, R.T2[i])); }
   setTxt('q2t_fiRT', fmt(R.q2.reduce((s, x) => s + parseBR(x.r.fiRT), 0), p));
   setTxt('q2t_acess', fmt(R.q2.reduce((s, x) => s + parseBR(x.r.acess), 0)));
-  /* Destaque das células do QI que conferem / divergem do QII */
-  R.q1.forEach((x, ri) => [2,3].forEach(col => { const el = $(`q1i_${ri}_v${col}`); if (!el) return; const ck = R.pavChecks.find(c => c.row === x && c.col === col); el.classList.toggle('mat', !!ck && ck.ok && x.c[col] > 0); el.classList.toggle('mis', !!ck && !ck.ok); }));
-  [[5,'c23'],[6,'c24'],[10,'c28'],[11,'c29'],[17,'c37'],[18,'c38']].forEach(([a, k]) => { const el = $('q2t_' + k); if (el) { const okk = Math.abs(R.T1[a] - R.T2[+k.slice(1)]) < 0.05; el.classList.toggle('mis', !okk); el.classList.toggle('mat', okk && R.T1[a] > 0); } });
+  /* QI × QII por pavimento e nos totais */
+  R.q1.forEach((x, ri) => [2,3].forEach(col => { const ck = R.pavChecks.find(c => c.row === x && c.col === col); marcar($(`q1i_${ri}_v${col}`), !ck || !(x.c[col] > 0 || !ck.ok) ? null : ck.ok); }));
+  [[5,'c23'],[6,'c24'],[10,'c28'],[11,'c29'],[17,'c37'],[18,'c38']].forEach(([a, k]) => { const okk = Math.abs(R.T1[a] - R.T2[+k.slice(1)]) < 0.05; marcar($('q2t_' + k), !okk ? false : R.T1[a] > 0 ? true : null); });
+  /* térreo: a coluna 17 tem de fechar a área do terreno (cobertas + descobertas) */
+  const at = parseBR(S.campos.areaTerreno), ter = R.q1.map((x, ri) => ({x, ri})).filter(o => /t[eé]rreo/i.test(o.x.r.nome));
+  if (at > 0 && ter.length) { const s17 = ter.reduce((s, o) => s + o.x.c[17] * o.x.qtd, 0), ok = Math.abs(s17 - at) < .05; ter.forEach(o => { const el = $(`q1c_${o.ri}_c17`); marcar(el, ok); if (el) el.title = ok ? `Térreo = área do terreno (${fmt(at)} m²)` : `Térreo soma ${fmt(s17)} m²; terreno ${fmt(at)} m²`; }); }
   const Q = R.Q3;
   setTxt('q3_41', fmt(Q.a41)); setTxt('q3_42', fmt(Q.a42)); setTxt('q3_43', fmt(Q.a43)); setTxt('q3_44', fmt(Q.a44)); setTxt('q3_45', fmt(Q.a45)); setTxt('q3_46', fmt(Q.a46));
   setTxt('q3_5', 'R$ ' + fmt(Q.v5)); setTxt('q3_7', 'R$ ' + fmt(Q.v7)); setTxt('q3_10', 'R$ ' + fmt(Q.v10)); setTxt('q3_13', 'R$ ' + fmt(Q.v13)); setTxt('q3_14', 'R$ ' + fmt(Q.v14));
@@ -183,9 +198,18 @@ function bindIncorporacao(){
     e.preventDefault();
     const rows = txt.replace(/\r/g, '').replace(/\n$/, '').split('\n'), t = inp.closest('table'), r0 = +inp.dataset.r, c0 = +inp.dataset.c;
     let n = 0;
-    rows.forEach((line, ri) => line.split('\t').forEach((val, ci) => { const x = t.querySelector(`input[data-r="${r0 + ri}"][data-c="${c0 + ci}"]`); if (x) { x.value = val.trim(); setBind(x.dataset.bind, x.value); n++; } }));
+    rows.forEach((line, ri) => line.split('\t').forEach((val, ci) => { const x = t.querySelector(`[data-r="${r0 + ri}"][data-c="${c0 + ci}"]`); if (x) { x.value = val.trim(); setBind(x.dataset.bind, x.value); n++; } }));
     recalcInc(); toast(`${n} célula(s) coladas.`);
   }));
+  ['tQ1','tQ2'].forEach(id => {
+    $(id).addEventListener('change', e => {
+      const sc = e.target.closest('[data-casa]'); if (sc) { S.inc.casas = Object.assign({}, S.inc.casas || {}, {[sc.dataset.casa]:+sc.value}); markDirty(); renderQ1(); renderQ2(); recalcInc(); return; }
+      const inp = e.target; if (!inp.dataset || !inp.dataset.col || inp.dataset.col === '31') return;
+      const v = String(inp.value).trim(), m = v.match(/^(-?[\d.]+)(?:,(\d*))?$/); if (!m) return;
+      const c = casa(+inp.dataset.col), dec = (m[2] || ''); if (dec.length >= c) return;   /* só completa com zeros, nunca arredonda */
+      inp.value = m[1] + (c ? ',' + dec.padEnd(c, '0') : ''); setBind(inp.dataset.bind, inp.value);
+    });
+  });
   $('bFilter').onchange = () => { $('bCrit').disabled = $('bFilter').value === 'ALL'; };
   $('bCrit').disabled = true;
   $('bApply').onclick = applyBatch;
