@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/checklist.js: etapa 3 · checklist editável e modelos por tipo de ato */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/checklist.js'] = '1.0.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/checklist.js'] = '1.1.0';
 /* =====================================================================
    3. CHECKLIST (editável)
    ===================================================================== */

@@ -74,3 +74,34 @@ test('fração ideal: maiores restos fecham exatamente 1', () => {
   assert.deepEqual(R.q2.map(x => x.fi.toFixed(4)), ['0.3334','0.3333','0.3333']);
   assert.equal(Math.round(R.q2.reduce((s, x) => s + x.fi, 0) * 1e4), 1e4);
 });
+
+/* ---------- matrícula: textos fictícios (nenhum dado de cliente) ---------- */
+const MAT_A = `IMÓVEL: Lote 10, da Quadra 5, situado nesta cidade, no loteamento JARDIM TESTE, com a área de 360,00m², confrontando pela frente com a Rua 1, com 12,00 metros; pelo fundo com o lote 20, com 12,00 metros; pelo lado direito com os lotes 9 e 8, com 30,00 metros e pelo lado esquerdo com o lote 11, com 30,00 metros. PROPRIETÁRIA: LOTEADORA EXEMPLO LTDA, com sede em Goiânia-GO, CNPJ 11.222.333/0001-81. REGISTRO ANTERIOR: Matrícula nº 1.000 deste Cartório. Dou fé. Cidade Ocidental-GO, 05 de maio de 2015. O Oficial.
+-----------------------------
+R-1-20.000. Protocolo nº 50.000, datado de 02/02/2020. COMPRA E VENDA. Nos termos da escritura..., a proprietária vendeu o imóvel objeto desta matrícula para: JOÃO EXEMPLO, brasileiro, solteiro, CPF nº 529.982.247-25, pelo preço de R$ 50.000,00. Dou fé. Cidade Ocidental-GO, 10 de fevereiro de 2020. O Oficial.
+-----------------------------
+R-2-20.000. Protocolo nº 60.000, datado de 03/03/2021. ALIENAÇÃO FIDUCIÁRIA. O proprietário alienou fiduciariamente o imóvel ao BANCO EXEMPLO S/A. Dou fé. Cidade Ocidental-GO, 15 de março de 2021. O Oficial.
+-----------------------------
+Av-3-20.000. Protocolo nº 70.000, datado de 04/04/2022. PENHORA. Procedo a esta averbação... Dou fé. Cidade Ocidental-GO, 20 de abril de 2022. O Oficial.
+-----------------------------
+Av-4-20.000. Protocolo nº 80.000, datado de 05/05/2023. CANCELAMENTO DE ALIENAÇÃO FIDUCIÁRIA. Fica cancelada a alienação fiduciária objeto do R-2 desta matrícula, em virtude da quitação. Dou fé. Cidade Ocidental-GO, 12 de maio de 2023. O Oficial.`;
+
+test('matrícula: titular, confrontações, ônus cancelado e ônus em aberto', () => {
+  const R = M.lerMatricula(MAT_A);
+  assert.equal(R.numero, '20.000'); assert.equal(R.areaNum, 360); assert.equal(R.abertura, '2015-05-05');
+  assert.deepEqual(R.confrontacoes.map(c => c.lado + ':' + c.com + ':' + c.med), ['frente:Rua 1:12,00', 'fundo:lote 20:12,00', 'lado direito:lotes 9 e 8:30,00', 'lado esquerdo:lote 11:30,00']);
+  assert.equal(R.proprietarioInicial.nome, 'LOTEADORA EXEMPLO LTDA');
+  assert.equal(R.titular.nome, 'JOÃO EXEMPLO'); assert.equal(R.titular.doc, '529.982.247-25'); assert.equal(R.titular.ato, 'R-1');
+  assert.equal(R.atos.find(a => a.rot === 'R-2').canceladoPor, 'Av-4');
+  assert.deepEqual(R.onusAbertos.map(o => o.rot), ['Av-3']);
+  assert.equal(R.ultimoAto, 'Av-4-20.000');
+});
+
+test('matrícula: texto sem quebras de linha (PDF/OCR) e cruzamento com a ficha', () => {
+  const R = M.lerMatricula(MAT_A.replace(/\n-+\n/g, ' ').replace(/\n/g, ' '));
+  assert.equal(R.atos.length, 4);
+  const X = M.cruzarMatricula(R, {areaTerreno:'350,00', confrontacao:'frente 12,00; fundo 12,00; direito 30,00; esquerdo 30,00'}, [{papel:'Transmitente', nome:'MARIA OUTRA', doc:'111.444.777-35'}]);
+  assert.ok(X.some(x => x[0] === 'err' && /Área do terreno/.test(x[1])));
+  assert.ok(X.some(x => x[0] === 'err' && /Continuidade/.test(x[1])));
+  assert.ok(X.some(x => x[0] === 'warn' && /Av-3 PENHORA/.test(x[1])));
+});

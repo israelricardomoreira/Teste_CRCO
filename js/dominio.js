@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/dominio.js: tipos de ato, categorias do GED, certidões, campos da ficha e modelos de checklist */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/dominio.js'] = '1.0.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/dominio.js'] = '1.1.0';
 const CATS = ['MATRICULA','TITULO','REQUERIMENTO','CERTIDAO','DOCUMENTO_PESSOAL','PROCURACAO','CONTRATO','ESCRITURA','ALVARA','ART_RRT','PROJETO','QUADROS_NBR','MEMORIAL','CONVENCAO','DECLARACAO','PLANTA','ATO_LAVRADO','OUTROS'];
 const TIPOS_ATO = {GERAL:'Outro / geral', COMPRA_VENDA:'Compra e venda', ALIENACAO_FIDUCIARIA:'Alienação fiduciária', INCORPORACAO:'Incorporação imobiliária', INST_CONDOMINIO:'Instituição de condomínio', AVERB_CONSTRUCAO:'Averbação de construção'};
 const PAPEIS = ['Transmitente','Adquirente','Devedor','Credor','Incorporador','Proprietário','Interveniente','Procurador','Outro'];

@@ -1,8 +1,8 @@
 /* Qualificador CRCO — js/inicio.js: eventos gerais, atalhos de teclado, conferência de versão e início */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/inicio.js'] = '1.0.0';
-const VERSAO = '1.0.0';
-const ARQUIVOS = ["js/nucleo.js", "js/dominio.js", "js/estado.js", "js/navegacao.js", "js/ged.js", "js/visualizador.js", "js/conferencia.js", "js/checklist.js", "js/incorporacao.js", "js/nota.js", "js/inicio.js"];
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/inicio.js'] = '1.1.0';
+const VERSAO = '1.1.0';
+const ARQUIVOS = ["js/nucleo.js", "js/dominio.js", "js/estado.js", "js/navegacao.js", "js/ged.js", "js/visualizador.js", "js/conferencia.js", "js/matricula.js", "js/checklist.js", "js/incorporacao.js", "js/nota.js", "js/inicio.js"];
 /* Confere se todos os arquivos vieram da mesma entrega (evita subir só parte da atualização) */
 function checarVersoes(){
   const reg = window.QUAL_ARQ || {}, ruins = ARQUIVOS.filter(a => reg[a] !== VERSAO);
@@ -73,6 +73,6 @@ function init(){
   $('dgCat').innerHTML = CATS.map(c => `<option>${c}</option>`).join('');
   if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
   else $('libWarn').hidden = false;
-  refreshHist(); bindGeral(); bindGED(); bindVisualizador(); bindConferencia(); bindChecklist(); bindIncorporacao(); bindNota(); renderAll(); checkAutosave();
+  refreshHist(); bindGeral(); bindGED(); bindVisualizador(); bindConferencia(); bindMatricula(); bindChecklist(); bindIncorporacao(); bindNota(); renderAll(); checkAutosave();
 }
 document.addEventListener('DOMContentLoaded', init);

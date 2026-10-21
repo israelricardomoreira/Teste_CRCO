@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/conferencia.js: etapa 2 · conferência lado a lado com origem de cada dado */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/conferencia.js'] = '1.0.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/conferencia.js'] = '1.1.0';
 /* =====================================================================
    2. CONFERÊNCIA
    ===================================================================== */
@@ -39,7 +39,7 @@ function detect(text){
   rx.forEach(([t, r]) => (text.match(r) || []).forEach(v => add(t, v)));
   return out.slice(0, 80);
 }
-function srcHTML(b){ const s = S.src[b]; return s ? `<button type="button" class="srcb" data-goto="${esc(s.pageId)}" title="Abrir a página de origem">📄 ${esc(s.label)}</button>` : ''; }
+function srcHTML(b){ const s = S.src[b]; if (s && !s.pageId) return `<span class="srcb" title="Origem do dado">📄 ${esc(s.label)}</span>`; return s ? `<button type="button" class="srcb" data-goto="${esc(s.pageId)}" title="Abrir a página de origem">📄 ${esc(s.label)}</button>` : ''; }
 function fmetaHTML(b){ return `<div class="fmeta"><span data-srcfor="${esc(b)}">${srcHTML(b)}</span><label class="okc"><input type="checkbox" data-ok="${esc(b)}"${S.ok[b] ? ' checked' : ''}> conferido</label></div>`; }
 function fieldHTML(f){
   const b = 'c:' + f.k, v = S.campos[f.k] ?? '', id = 'f_' + f.k;
@@ -52,7 +52,7 @@ function fieldHTML(f){
 function renderConfForm(){
   const isInc = S.meta.tipoAto === 'INCORPORACAO';
   const groups = [...new Set(CAMPOS.filter(f => !f.inc || isInc).map(f => f.g))];
-  let h = groups.map(g => `<h3 class="grp-h">${g}</h3><div class="fgrid">${CAMPOS.filter(f => f.g === g && (!f.inc || isInc)).map(fieldHTML).join('')}</div>`).join('');
+  let h = matResumoHTML() + groups.map(g => `<h3 class="grp-h">${g}</h3><div class="fgrid">${CAMPOS.filter(f => f.g === g && (!f.inc || isInc)).map(fieldHTML).join('')}</div>`).join('');
   h += `<h3 class="grp-h">Partes <button class="btn sm" type="button" id="addParte" style="margin-left:auto">+ Parte</button></h3>`;
   h += S.partes.length ? `<table class="lt"><thead><tr><th style="width:150px">Papel</th><th>Nome / razão social</th><th style="width:200px">CPF / CNPJ</th><th style="width:40px"></th></tr></thead><tbody>${S.partes.map(p => `<tr data-hasdoc="1">
       <td><select data-bind="p:${p.id}:papel" aria-label="Papel">${PAPEIS.map(o => `<option${o === p.papel ? ' selected' : ''}>${o}</option>`).join('')}</select></td>

@@ -245,7 +245,7 @@ dialog label{display:flex;flex-direction:column;font-size:12px;font-weight:600;c
 
 <header class="app-hdr">
   <div class="brand"><span class="logo" aria-hidden="true">QR</span>
-    <div><div class="brand-t">Qualificador CRCO</div><div class="brand-s">Registro de Imóveis · Cidade Ocidental/GO · v1.0.0</div></div></div>
+    <div><div class="brand-t">Qualificador CRCO</div><div class="brand-s">Registro de Imóveis · Cidade Ocidental/GO · v1.1.0</div></div></div>
   <div class="meta">
     <label for="mProt">Protocolo<input id="mProt" data-bind="m:protocolo" autocomplete="off"></label>
     <label for="mTipo">Tipo de ato<select id="mTipo" data-bind="m:tipoAto"></select></label>
@@ -291,7 +291,7 @@ dialog label{display:flex;flex-direction:column;font-size:12px;font-weight:600;c
         <div class="row" style="margin-left:auto"><button class="btn sm" id="cPrev" type="button" aria-label="Página anterior">‹</button><span class="count" id="cCount">–</span><button class="btn sm" id="cNext" type="button" aria-label="Próxima página">›</button><button class="btn sm" id="cZoom" type="button">Lupa</button></div></div>
       <div class="panel-b" style="display:flex;flex-direction:column">
         <div class="cimg" id="cImgBox"><img id="cImg" alt="Página do documento selecionado" draggable="false"></div>
-        <div class="row" style="margin-top:8px"><button class="btn sm" id="cOcr" type="button">Ler esta página com OCR</button><button class="btn sm" id="cOcrAll" type="button">OCR do documento</button><button class="btn sm primary" id="cUse" type="button">Inserir texto selecionado no campo ativo →</button></div>
+        <div class="row" style="margin-top:8px"><button class="btn sm" id="cOcr" type="button">Ler esta página com OCR</button><button class="btn sm" id="cOcrAll" type="button">OCR do documento</button><button class="btn sm" id="cMat" type="button">Ler matrícula</button><button class="btn sm primary" id="cUse" type="button">Inserir texto selecionado no campo ativo →</button></div>
         <div class="ctext" id="cText" tabindex="0" aria-label="Texto da página"></div>
         <div class="chips" id="cChips" aria-label="Dados detectados na página"></div>
         <div class="activehint" id="cActive">Clique num campo à direita; depois selecione o trecho no texto (ou clique num dado detectado) para preencher.</div>
@@ -399,24 +399,33 @@ dialog label{display:flex;flex-direction:column;font-size:12px;font-weight:600;c
   </form>
 </dialog>
 
+<dialog id="dlgMat" aria-labelledby="dmTitle" style="width:min(820px,94vw)">
+  <form method="dialog" id="fMat">
+    <h2 id="dmTitle">Ler matrícula</h2><p class="muted" id="matFonte" style="font-size:13px"></p>
+    <textarea id="matTxt" rows="16" style="margin-top:8px;font:12px/1.5 var(--mono)" aria-label="Texto da matrícula"></textarea>
+    <p class="muted" style="font-size:12px;margin-top:6px">Preenche só os campos vazios da ficha (matrícula, área, descrição, confrontações, CEP e último ato) e marca a origem. O que já estava preenchido é mantido e, se for diferente, aparece como divergência.</p>
+    <div class="dlg-act"><button class="btn primary" value="ok" type="submit">Ler e preencher</button><button class="btn" value="cancel" type="submit" formnovalidate>Cancelar</button></div>
+  </form>
+</dialog>
 <datalist id="histGED"></datalist><datalist id="catExig"></datalist><datalist id="catFund"></datalist>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <div class="busy" id="busy" hidden><div class="busy-box" role="status"><strong id="busyMsg">Processando…</strong><div class="bar"><i id="busyBar"></i></div></div></div>
 
-<script src="lib/pdf.min.js?v=1.0.0"></script>
-<script src="lib/pdf-lib.min.js?v=1.0.0"></script>
-<script src="lib/jszip.min.js?v=1.0.0"></script>
-<script src="motor.js?v=1.0.0"></script>
-<script src="js/nucleo.js?v=1.0.0"></script>
-<script src="js/dominio.js?v=1.0.0"></script>
-<script src="js/estado.js?v=1.0.0"></script>
-<script src="js/navegacao.js?v=1.0.0"></script>
-<script src="js/ged.js?v=1.0.0"></script>
-<script src="js/visualizador.js?v=1.0.0"></script>
-<script src="js/conferencia.js?v=1.0.0"></script>
-<script src="js/checklist.js?v=1.0.0"></script>
-<script src="js/incorporacao.js?v=1.0.0"></script>
-<script src="js/nota.js?v=1.0.0"></script>
-<script src="js/inicio.js?v=1.0.0"></script>
+<script src="lib/pdf.min.js?v=1.1.0"></script>
+<script src="lib/pdf-lib.min.js?v=1.1.0"></script>
+<script src="lib/jszip.min.js?v=1.1.0"></script>
+<script src="motor.js?v=1.1.0"></script>
+<script src="js/nucleo.js?v=1.1.0"></script>
+<script src="js/dominio.js?v=1.1.0"></script>
+<script src="js/estado.js?v=1.1.0"></script>
+<script src="js/navegacao.js?v=1.1.0"></script>
+<script src="js/ged.js?v=1.1.0"></script>
+<script src="js/visualizador.js?v=1.1.0"></script>
+<script src="js/conferencia.js?v=1.1.0"></script>
+<script src="js/matricula.js?v=1.1.0"></script>
+<script src="js/checklist.js?v=1.1.0"></script>
+<script src="js/incorporacao.js?v=1.1.0"></script>
+<script src="js/nota.js?v=1.1.0"></script>
+<script src="js/inicio.js?v=1.1.0"></script>
 </body>
 </html>

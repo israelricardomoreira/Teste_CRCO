@@ -140,6 +140,108 @@ function auditoria(R, I, campos, meta){
   if (rt > 0) { const d = Math.abs(rt - R.Q3.v13); A.push(d < 1 ? ['ok', 'Custo global do RT confere com o cálculo do Quadro III.'] : ['err', `Custo global do RT (R$ ${fmt(rt)}) difere do calculado (R$ ${fmt(R.Q3.v13)}) em R$ ${fmt(d)}.`]); }
   return A;
 }
-  return {VERSAO:'1.0.0', onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, calcInc:calcInc, auditoria:auditoria};
+  /* ---------- Leitura de matrícula (texto copiado do sistema, do PDF ou do OCR) ---------- */
+  const MESES = {janeiro:1, fevereiro:2, 'março':3, marco:3, abril:4, maio:5, junho:6, julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12};
+  const RX_DOC = /\b(?:\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2}|\d{14}|\d{11})\b/;
+  const RX_ROTULO = /(^|\n)[\s\-–_=]*((R|AV|Av|av)\s*[-.]?\s*(\d+)\s*[-/]\s*(\d[\d.]*))\s*[.:–-]/g;
+  const TRANSMISSAO = /COMPRA E VENDA|DOA[CÇ][AÃ]O|PERMUTA|ARREMATA[CÇ][AÃ]O|ADJUDICA[CÇ][AÃ]O|DA[CÇ][AÃ]O EM PAGAMENTO|USUCAPI[AÃ]O|INTEGRALIZA[CÇ][AÃ]O|PARTILHA|FORMAL DE PARTILHA|INVENT[AÁ]RIO|CONSOLIDA[CÇ][AÃ]O DA PROPRIEDADE|LEGITIMA[CÇ][AÃ]O FUNDI[AÁ]RIA|REURB|TRANSMISS[AÃ]O/;
+  const ONUS = /HIPOTECA|ALIENA[CÇ][AÃ]O FIDUCI[AÁ]RIA|PENHORA|ARRESTO|SEQUESTRO|INDISPONIBILIDADE|CL[AÁ]USULA RESOLUTIVA|USUFRUTO|SERVID[AÃ]O|ARROLAMENTO|CAU[CÇ][AÃ]O|INALIENABILIDADE|IMPENHORABILIDADE|INCOMUNICABILIDADE|PROMESSA DE COMPRA|COMPROMISSO DE COMPRA|C[EÉ]DULA|DIREITO DE SUPERF[IÍ]CIE|AJUIZAMENTO DE A[CÇ][AÃ]O|EXISTÊNCIA DE A[CÇ][AÃ]O|LOCA[CÇ][AÃ]O/;
+  const CANCELA = /CANCELAMENTO|BAIXA D|LEVANTAMENTO|EXTIN[CÇ][AÃ]O|LIBERA[CÇ][AÃ]O|QUITA[CÇ][AÃ]O|DESCONSTITUI/;
+  const sp = s => String(s || '').replace(/\s+/g, ' ').trim();
+  function dataExtenso(s){
+    const m = String(s).match(/(\d{1,2})º?\s+de\s+([a-zçã]+)\s+de\s+(\d{4})/i); if (!m) return '';
+    const mes = MESES[m[2].toLowerCase()]; return mes ? `${m[3]}-${String(mes).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}` : '';
+  }
+  function ultimaDataExtenso(s){ const all = String(s).match(/\d{1,2}º?\s+de\s+[a-zçã]+\s+de\s+\d{4}/gi) || []; return all.length ? dataExtenso(all[all.length - 1]) : ''; }
+  function nomeEDoc(trecho){
+    const t = sp(trecho), nome = sp(t.split(/,|\s+-\s+|\(/)[0]).replace(/^(a|o|os|as)\s+/i, '').replace(/[.;:]$/, '');
+    const d = t.match(RX_DOC); return {nome, doc: d ? d[0] : ''};
+  }
+  function lerMatricula(texto){
+    const T = String(texto || '').replace(/\r/g, '').replace(/[ \t]+/g, ' ');
+    const R = {numero:'', abertura:'', area:'', areaNum:0, imovel:'', confrontacoes:[], cep:'', cci:'', inscricao:'',
+      proprietarioInicial:null, registroAnterior:'', atos:[], titular:null, onusAbertos:[], ultimoAto:'', alertas:[]};
+    /* atos: rótulo no começo da linha (R-2-17.118. / Av-1-17.118.) */
+    const pos = []; let m; RX_ROTULO.lastIndex = 0;
+    while ((m = RX_ROTULO.exec(T))) pos.push({i:m.index + m[1].length, fim:RX_ROTULO.lastIndex, tipo:m[3].toUpperCase() === 'R' ? 'R' : 'AV', n:+m[4], mat:m[5].replace(/\.$/, '')});
+    if (!pos.length) { /* texto sem quebras de linha (PDF/OCR): o rótulo precisa vir seguido de "Protocolo" ou da natureza em maiúsculas */
+      const rx = /((R|AV|Av)\s*-\s*(\d+)\s*-\s*(\d[\d.]*\d))\s*[.:–-]\s*(?=Protocolo|PROTOCOLO|[A-ZÀ-Ü]{3,})/g;
+      while ((m = rx.exec(T))) pos.push({i:m.index, fim:rx.lastIndex, tipo:m[2].toUpperCase() === 'R' ? 'R' : 'AV', n:+m[3], mat:m[4]});
+    }
+    const cabeca = pos.length ? T.slice(0, pos[0].i) : T;
+    const nums = {}; pos.forEach(p => { nums[p.mat] = (nums[p.mat] || 0) + 1; });
+    const mt = T.match(/MATR[IÍ]CULA\s*(?:N[º°O.]*\s*)?:?\s*(\d[\d.]*\d)/i);
+    R.numero = Object.keys(nums).sort((a, b) => nums[b] - nums[a])[0] || (mt ? mt[1] : '');
+    /* cabeça: imóvel, área, confrontações, proprietário, registro anterior */
+    const ci = sp(cabeca);
+    const im = ci.match(/IM[OÓ]VEL\s*:\s*(.+?)(?=\s*PROPRIET[AÁ]RI[OA]S?\s*:|$)/i); R.imovel = im ? sp(im[1]).replace(/[.;]$/, '') : '';
+    const ar = ci.match(/[áa]rea(?:\s+total)?(?:\s+de)?\s+([\d.]+,\d{2,4})\s*(?:m²|m2|metros quadrados)/i); if (ar) { R.area = ar[1]; R.areaNum = parseBR(ar[1]); }
+    const rxConf = /pel[oa]s?\s+(frente|fundos?|lado direito|lado esquerdo|lateral direita|lateral esquerda)\s*(?:,\s*)?com\s+(?:(?:os|as|o|a)\s+)?(.+?),?\s+(?:com|medindo|numa extens[aã]o de)\s+([\d.]+,\d{2})\s*(?:m\b|metros)/gi;
+    let c; while ((c = rxConf.exec(R.imovel || ci))) R.confrontacoes.push({lado:c[1].toLowerCase().replace('lateral', 'lado'), com:sp(c[2]), med:c[3]});
+    const pr = ci.match(/PROPRIET[AÁ]RI[OA]S?\s*:\s*(.+?)(?=\s*(?:DATA DE AQUISI|REGISTRO ANTERIOR|T[IÍ]TULO AQUISITIVO)|$)/i);
+    if (pr) R.proprietarioInicial = Object.assign(nomeEDoc(pr[1]), {ato:'abertura'});
+    const ra = ci.match(/REGISTRO ANTERIOR\s*:\s*(.+?)(?:\.\s*Dou f[ée]|$)/i); R.registroAnterior = ra ? sp(ra[1]) : '';
+    R.abertura = ultimaDataExtenso(ci);
+    if (R.proprietarioInicial) R.titular = Object.assign({}, R.proprietarioInicial);
+    /* cada ato */
+    pos.forEach((p, k) => {
+      const corpo = sp(T.slice(p.fim, k + 1 < pos.length ? pos[k + 1].i : T.length)).replace(/^[-–_=\s]+|[-–_=\s]+$/g, '');
+      const rot = (p.tipo === 'R' ? 'R' : 'Av') + '-' + p.n;
+      const prot = corpo.match(/Protocolo\s*(?:n[º°o.]*\s*)?:?\s*([\d.]+\d)/i);
+      const dp = corpo.match(/datad[oa] de (\d{2}\/\d{2}\/\d{4})/i);
+      let nat = '';
+      const nm = corpo.match(/(?:datad[oa] de \d{2}\/\d{2}\/\d{4}|Protocolo[^.]*?\d)\.\s*([A-ZÀ-Ü0-9][A-ZÀ-Ü0-9 ,\-\/ºª()]{3,}?)\s*[.:]/);
+      if (nm) nat = sp(nm[1]); else { const f = corpo.match(/^([A-ZÀ-Ü][A-ZÀ-Ü ,\-\/ºª]{3,}?)\s*[.:]/); if (f) nat = sp(f[1]); }
+      const ato = {rot, tipo:p.tipo, n:p.n, protocolo:prot ? prot[1] : '', dataProt:dp ? dp[1] : '', data:ultimaDataExtenso(corpo), natureza:nat, texto:corpo, cancelado:false, canceladoPor:''};
+      const NAT = nat.toUpperCase();
+      if (CANCELA.test(NAT)) {
+        const refs = (corpo.match(/\b(?:R|AV|Av)\s*-\s*\d+\b(?!\s*-\s*\d)/g) || []).map(r => r.replace(/\s/g, '').toUpperCase());
+        R.atos.forEach(a => { if (refs.includes(a.rot.toUpperCase()) && a.onus) { a.cancelado = true; a.canceladoPor = rot; } });
+      } else if (ONUS.test(NAT)) ato.onus = true;
+      if (p.tipo === 'R' && TRANSMISSAO.test(NAT)) {
+        const ad = corpo.match(/(?:vend\w*|transmit\w*|do\w+|permut\w*|cede\w*|adjudic\w*|arremat\w*)[^:]{0,120}?(?:para|a favor de|em favor de|ao?s?)\s*:\s*(.+?)(?:,\s*pelo pre[cç]o|,\s*pelo valor|\.\s|$)/i)
+          || corpo.match(/(?:adquirente|outorgad[oa] compradora?|comprador[a]?|donat[aá]ri[oa]|arrematante|adjudicat[aá]ri[oa])\s*:\s*(.+?)(?:\.\s|$)/i);
+        if (ad) { R.titular = Object.assign(nomeEDoc(ad[1]), {ato:rot}); ato.adquirente = R.titular.nome; }
+        else R.alertas.push(`${rot}: transmissão sem adquirente identificado — conferir o titular atual manualmente.`);
+      }
+      const novoNome = corpo.match(/passou a (?:assinar|se chamar|denominar-se)\s*:?\s*([A-ZÀ-Ü][A-ZÀ-Ü .'-]+[A-ZÀ-Ü])/);
+      if (novoNome && R.titular) R.titular.nomeAtual = sp(novoNome[1]);
+      const cep = corpo.match(/CEP\s*(?:n[º°o.]*\s*)?:?\s*(\d{2}\.?\d{3}-\d{3})/i); if (cep) R.cep = cep[1];
+      const cci = corpo.match(/CCI\s*(?:n[º°o.]*\s*)?:?\s*(\d+)/i); if (cci) R.cci = cci[1];
+      const ins = corpo.match(/inscri[cç][aã]o\s*(?:imobili[aá]ria\s*)?(?:n[º°o.]*\s*)?:?\s*([\d.]+[A-Z0-9.]*)/i); if (ins) R.inscricao = ins[1].replace(/\.$/, '');
+      R.atos.push(ato);
+    });
+    if (!R.cep) { const cc = ci.match(/CEP\s*(?:n[º°o.]*\s*)?:?\s*(\d{2}\.?\d{3}-\d{3})/i); if (cc) R.cep = cc[1]; }
+    R.onusAbertos = R.atos.filter(a => a.onus && !a.cancelado).map(a => ({rot:a.rot, natureza:a.natureza}));
+    const ult = R.atos[R.atos.length - 1]; R.ultimoAto = ult ? `${ult.rot}-${R.numero}` : '';
+    if (!R.atos.length) R.alertas.push('Nenhum ato (R-/Av-) reconhecido: confira se o texto está completo.');
+    if (!R.areaNum) R.alertas.push('Área do imóvel não reconhecida na abertura da matrícula.');
+    if (R.titular && !R.titular.doc && R.titular.ato !== 'abertura') R.alertas.push('CPF/CNPJ do titular atual não reconhecido.');
+    return R;
+  }
+  /* Compara a matrícula lida com a ficha: área, confrontações (por lado) e titular × partes do título */
+  function cruzarMatricula(M, campos, partes){
+    const out = [], dig = s => String(s || '').replace(/\D/g, '');
+    const a = parseBR(campos.areaTerreno);
+    if (M.areaNum && a) out.push(Math.abs(a - M.areaNum) < 0.005 ? ['ok', `Área do terreno igual à da matrícula (${fmt(M.areaNum)} m²).`] : ['err', `Área do terreno na ficha (${fmt(a)} m²) difere da matrícula (${fmt(M.areaNum)} m²).`]);
+    const conf = String(campos.confrontacao || '').toLowerCase();
+    if (M.confrontacoes.length && conf) {
+      const faltam = M.confrontacoes.filter(c => !conf.includes(c.med) );
+      out.push(faltam.length ? ['warn', `Medidas da matrícula não encontradas nas confrontações da ficha: ${faltam.map(c => c.lado + ' ' + c.med + ' m').join(', ')}.`] : ['ok', 'Medidas das confrontações da ficha conferem com a matrícula.']);
+    }
+    if (M.titular) {
+      const ref = (partes || []).filter(p => /Transmitente|Incorporador|Propriet|Devedor/i.test(p.papel || ''));
+      const docT = dig(M.titular.doc);
+      if (!ref.length) out.push(['warn', `Titular atual: ${M.titular.nomeAtual || M.titular.nome}${M.titular.doc ? ' (' + M.titular.doc + ')' : ''} — lance o transmitente/incorporador nas Partes para conferir a continuidade.`]);
+      else {
+        const bate = ref.some(p => (docT && dig(p.doc) === docT) || (!docT && String(p.nome || '').toUpperCase().includes(String(M.titular.nome).toUpperCase())));
+        out.push(bate ? ['ok', `Continuidade: o titular atual (${M.titular.nomeAtual || M.titular.nome}, ${M.titular.ato}) é parte do título.`] : ['err', `Continuidade: o titular atual na matrícula é ${M.titular.nomeAtual || M.titular.nome}${M.titular.doc ? ' (' + M.titular.doc + ')' : ''}, que não aparece como transmitente/incorporador no título.`]);
+      }
+    }
+    out.push(M.onusAbertos.length ? ['warn', `Ônus/restrições em aberto: ${M.onusAbertos.map(o => o.rot + ' ' + o.natureza).join('; ')}.`] : ['ok', 'Nenhum ônus ou restrição em aberto reconhecido (conferir também a CNIB).']);
+    M.alertas.forEach(t => out.push(['warn', t]));
+    return out;
+  }
+  return {VERSAO:'1.1.0', onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula};
 })();
 if (typeof module !== 'undefined') module.exports = Motor;

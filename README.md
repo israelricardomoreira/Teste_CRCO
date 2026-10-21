@@ -27,6 +27,7 @@ Organiza o GED, confere os dados lado a lado com o documento de origem, mantém 
 | Importar documentos | Etapa **1 · Documentos**: arraste PDFs/imagens ou cole prints (Ctrl+V). Alt+I importa, Alt+A agrupa |
 | Validar assinatura | Botão **🔐 Validar** no documento: copia o nome do PDF e abre o ITI. Lá, **Ctrl+V** e **Enter** |
 | Ler página escaneada | **Lupa → Texto → Ler com OCR** ou **Conferência → Ler esta página com OCR** |
+| Ler a matrícula | **Conferência → Ler matrícula**: usa o documento MATRICULA do GED (ou o texto colado), preenche a ficha e mostra titular atual, atos, ônus em aberto e continuidade |
 | Conferir dados | Etapa **2 · Conferência**: clique no campo, selecione o trecho no texto (ou clique no dado detectado). A origem fica registrada |
 | Checklist | Etapa **3**: carregue o modelo do tipo de ato, edite, exclua ou inclua itens e **Salve como meu modelo** |
 | Incorporação | Etapa **4** (aparece só em *Incorporação imobiliária*): quadros, auditoria NBR 12721 e minuta. Dá para colar do Excel |
@@ -42,7 +43,7 @@ O `.gori` tem dados do título (nomes, CPF/CNPJ). Guarde na pasta do processo ou
 | Arquivo | Para que serve |
 |---|---|
 | `index.html` | Página, estilos e ordem de carregamento |
-| `motor.js` | Regras sem tela: NBR 12721 (Quadros I a III e IV-B), fração ideal, auditoria, extenso, CPF/CNPJ. Roda também no Node |
+| `motor.js` | Regras sem tela: NBR 12721 (Quadros I a III e IV-B), fração ideal, auditoria, leitura de matrícula, extenso, CPF/CNPJ. Roda também no Node |
 | `js/nucleo.js` | Utilitários de tela usados por todos |
 | `js/dominio.js` | Tipos de ato, categorias do GED, certidões, campos da ficha e modelos de checklist padrão |
 | `js/estado.js` | Estado da análise, salvar/abrir `.gori`, importação da Calculadora GO-RI v3 |
@@ -50,6 +51,7 @@ O `.gori` tem dados do título (nomes, CPF/CNPJ). Guarde na pasta do processo ou
 | `js/ged.js` | Etapa 1 · GED: importar, agrupar, ordenar, ZIP, validação de assinatura |
 | `js/visualizador.js` | Lupa, régua, contraste, OCR e "Apontar exigência" |
 | `js/conferencia.js` | Etapa 2 · ficha lado a lado com a origem de cada dado |
+| `js/matricula.js` | Leitura da matrícula na Conferência (a regra de leitura fica no `motor.js`) |
 | `js/checklist.js` | Etapa 3 · checklist editável e modelos |
 | `js/incorporacao.js` | Etapa 4 · quadros, auditoria e minuta (o cálculo está no `motor.js`) |
 | `js/nota.js` | Etapa 5 · exigências, catálogo e nota |
@@ -62,7 +64,7 @@ O `.gori` tem dados do título (nomes, CPF/CNPJ). Guarde na pasta do processo ou
 ## Atualizar sem quebrar
 
 1. Antes de subir, rode os testes: `node --test tests/motor.test.js` (tem que dar `pass` em todos).
-2. Toda entrega tem **um número de versão** (hoje `1.0.0`). Ele aparece em: `motor.js` (VERSAO), `js/inicio.js` (VERSAO), na linha de registro do topo de cada `js/*.js` e no `?v=` dos `<script>` do `index.html`. Troque em todos.
+2. Toda entrega tem **um número de versão** (hoje `1.1.0`). Ele aparece em: `motor.js` (VERSAO), `js/inicio.js` (VERSAO), na linha de registro do topo de cada `js/*.js` e no `?v=` dos `<script>` do `index.html`. Troque em todos.
 3. Suba **todos** os arquivos alterados juntos. Se faltar algum, o site mostra um aviso vermelho dizendo qual arquivo está em versão diferente, em vez de funcionar pela metade.
 4. Se algo der errado: **Commits → escolha a versão anterior → Revert**.
 
