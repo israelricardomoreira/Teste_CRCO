@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/estado.js: estado da análise, salvar/abrir (.gori), importação da Calculadora GO-RI v3 e ligação dos campos */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/estado.js'] = '1.1.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/estado.js'] = '1.2.0';
 function freshInc(){
   return {blOn:false, blN:'2', blTipo:'Letras', denom:'APARTAMENTO', destinacao:'residenciais', precFI:'6',
     pavs:[{id:uid(),nome:'Térreo',qtd:'1',und:'3',inicio:'101'},{id:uid(),nome:'Superior',qtd:'1',und:'3',inicio:'201'}],
@@ -9,7 +9,7 @@ function freshInc(){
 }
 function freshState(){
   return {meta:{protocolo:'',tipoAto:'GERAL',dataPrenotacao:'',qualificador:''}, pages:[], docs:[],
-    campos:{}, src:{}, ok:{}, partes:[], certidoes:[], checklist:[], exig:[], nota:'', inc:freshInc(), mat:null};
+    campos:{}, src:{}, ok:{}, partes:[], certidoes:[], checklist:[], exig:[], nota:'', inc:freshInc(), mat:null, aprend:null};
 }
 let S = freshState();
 const FILES = new Map();
@@ -18,7 +18,7 @@ let sel = new Set(), lastIdx = null, drag = null, dirty = false, autosaveT = nul
 function markDirty(){ dirty = true; clearTimeout(autosaveT); autosaveT = setTimeout(autosave, 1200); }
 function snapshot(){
   return {v:4, app:'qualificador-crco', salvoEm:new Date().toISOString(), meta:S.meta, campos:S.campos, src:S.src, ok:S.ok,
-    partes:S.partes, certidoes:S.certidoes, checklist:S.checklist, exig:S.exig, nota:S.nota, inc:S.inc, mat:S.mat,
+    partes:S.partes, certidoes:S.certidoes, checklist:S.checklist, exig:S.exig, nota:S.nota, inc:S.inc, mat:S.mat, aprend:S.aprend ? Object.assign({}, S.aprend, {_t:null, _etapa:null}) : null,
     ged:S.docs.map(d => ({order:d.order, category:d.category, name:d.name, validade:d.validade || '', paginas:d.pageIds.length}))};
 }
 function applySnapshot(o){
@@ -26,7 +26,7 @@ function applySnapshot(o){
   const inc = Object.assign(freshInc(), o.inc || {});
   inc.q3 = Object.assign(freshInc().q3, (o.inc || {}).q3 || {});
   S = Object.assign(base, {meta:Object.assign(base.meta, o.meta || {}), campos:o.campos || {}, src:o.src || {}, ok:o.ok || {},
-    partes:o.partes || [], certidoes:o.certidoes || [], checklist:o.checklist || [], exig:o.exig || [], nota:o.nota || '', inc, mat:o.mat || null}, keep);
+    partes:o.partes || [], certidoes:o.certidoes || [], checklist:o.checklist || [], exig:o.exig || [], nota:o.nota || '', inc, mat:o.mat || null, aprend:o.aprend || null}, keep);
 }
 function autosave(){ if (!$('restoreBar').hidden) return; lsSet('qcrco_autosave', {t:Date.now(), d:snapshot()}); }
 function salvarAnalise(){

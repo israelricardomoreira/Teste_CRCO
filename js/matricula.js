@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/matricula.js: leitura automática da matrícula (preenche a ficha e mostra titular, atos e ônus) */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.1.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.2.0';
 
 /* Texto da matrícula: documento MATRICULA do GED (ou o que está aberto na Conferência), senão o usuário cola */
 function matTextoDoGED(){
@@ -29,13 +29,15 @@ function aplicarMatricula(texto){
   const rotulo = `Matrícula ${R.numero || ''}`.trim() + (pid ? '' : ' (texto colado)');
   const valores = {matricula:R.numero, areaTerreno:R.area, descricao:R.imovel, confrontacao:confrontacoesTexto(R), cep:R.cep, regAnterior:R.ultimoAto};
   const preenchidos = [], mantidos = [];
+  const fonte = fonteDe(pid);
   Object.entries(valores).forEach(([k, v]) => {
     if (!v) return;
     const atual = String(S.campos[k] || '').trim();
+    registrarSugestao('c:' + k, v, {regra:'matricula.' + k, fonte, contexto:trecho(texto, k === 'confrontacao' ? R.confrontacoes.map(c => c.com)[0] : k === 'regAnterior' ? R.ultimoAto.split('-').slice(0, 2).join('-') : v), naoAplicado:!!atual});
     if (!atual) { S.campos[k] = v; S.src['c:' + k] = {pageId:pid, label:rotulo}; S.ok['c:' + k] = false; preenchidos.push(k); }
     else if (atual !== v) mantidos.push(k);
   });
-  S.mat = {R, fonte:rotulo, lidaEm:new Date().toISOString()};
+  S.mat = {R, fonte:rotulo, lidaEm:new Date().toISOString(), ctxTitular:R.titular ? trecho(texto, R.titular.nome) : '', fonteTipo:fonte.tipo};
   markDirty(); renderConfForm(); refreshCertStatus();
   const nomes = k => (CAMPOS.find(c => c.k === k) || {l:k}).l;
   toast(`Matrícula lida: ${preenchidos.length} campo(s) preenchido(s)` + (mantidos.length ? `; mantive o que já estava em ${mantidos.map(nomes).join(', ')} (veja o resumo).` : '. Confira e marque "conferido".'));
@@ -80,7 +82,9 @@ function bindMatricula(){
     if (b.dataset.mat === 'ler') abrirLeituraMatricula();
     if (b.dataset.mat === 'parte' && S.mat && S.mat.R.titular) {
       const T = S.mat.R.titular;
-      S.partes.push({id:uid(), papel:S.meta.tipoAto === 'INCORPORACAO' ? 'Incorporador' : 'Transmitente', nome:T.nomeAtual || T.nome, doc:T.doc || ''});
+      const np = {id:uid(), papel:S.meta.tipoAto === 'INCORPORACAO' ? 'Incorporador' : 'Transmitente', nome:T.nomeAtual || T.nome, doc:T.doc || ''}; S.partes.push(np);
+      registrarSugestao(`p:${np.id}:nome`, np.nome, {regra:'matricula.titular', fonte:{tipo:S.mat.fonteTipo || ''}, contexto:S.mat.ctxTitular || '', ehNome:true});
+      if (np.doc) registrarSugestao(`p:${np.id}:doc`, np.doc, {regra:'matricula.titular.doc', fonte:{tipo:S.mat.fonteTipo || ''}, contexto:S.mat.ctxTitular || ''});
       markDirty(); renderConfForm(); toast('Titular adicionado às partes. Ajuste o papel se precisar.');
     }
   });

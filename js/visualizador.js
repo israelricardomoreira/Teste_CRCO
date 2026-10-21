@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/visualizador.js: lupa, régua, contraste, texto/OCR e exigência rápida */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/visualizador.js'] = '1.1.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/visualizador.js'] = '1.2.0';
 /* ---------- OCR (Tesseract.js, carregado sob demanda) ---------- */
 let ocrWorker = null;
 async function ensureOCR(){
@@ -19,7 +19,7 @@ async function ocrPages(list){
     for (let i = 0; i < list.length; i++) {
       const p = list[i]; busy(true, `OCR: página ${i + 1} de ${list.length}`, 5 + Math.round(i / list.length * 92));
       const src = p.rotation ? (await toJpeg(p.dataUrl, p.rotation)).data : p.dataUrl;
-      const r = await w.recognize(src); p.ocr = (r.data && r.data.text || '').trim();
+      const r = await w.recognize(src); p.ocr = (r.data && r.data.text || '').trim(); p.ocrConf = r.data && r.data.confidence != null ? Math.round(r.data.confidence) : null;
     }
     toast('OCR concluído. Confira o texto: leitura de máquina pode errar.');
   } catch (e) { console.error(e); toast('OCR indisponível: ' + e.message, 'err'); }

@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/ged.js: etapa 1 · documentos (GED): importar, agrupar, ordenar, ZIP e validação de assinatura */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.1.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.2.0';
 /* =====================================================================
    1. DOCUMENTOS (GED)
    ===================================================================== */
@@ -8,7 +8,10 @@ const pageById = id => S.pages.find(p => p.id === id);
 const hasSig = buf => { try { return new TextDecoder('latin1').decode(buf).includes('/ByteRange'); } catch (e) { return false; } };
 function detectCat(s){
   s = (s || '').toLowerCase();
-  const r = [[/matr[ií]cula/,'MATRICULA'],[/alvar/,'ALVARA'],[/\bart\b|\brrt\b/,'ART_RRT'],[/quadro|nbr|12721/,'QUADROS_NBR'],[/memorial/,'MEMORIAL'],[/conven[cç]/,'CONVENCAO'],[/procura/,'PROCURACAO'],[/certid|cnd|cndt/,'CERTIDAO'],[/contrato/,'CONTRATO'],[/escritura/,'ESCRITURA'],[/requer/,'REQUERIMENTO'],[/declara/,'DECLARACAO'],[/planta/,'PLANTA'],[/projeto/,'PROJETO'],[/\brg\b|\bcnh\b|identidade/,'DOCUMENTO_PESSOAL']];
+  /* Alvará, ART/RRT e quadros da NBR vão em Projeto; requerimento e convenção em Outros (ajuste aqui se o cartório usar outra) */
+  const r = [[/matr[ií]cula/,'MATRICULA'],[/escritura/,'ESCRITURA'],[/procura/,'PROCURACAO'],[/certid|\bcnd/,'CERTIDAO'],[/contrato/,'CONTRATO'],[/declara/,'DECLARACAO'],
+    [/ato lavrado|traslado/,'ATO_LAVRADO'],[/memorial/,'MEMORIAL'],[/planta/,'PLANTA_ENGENHARIA'],[/projeto|alvar|\bart\b|\brrt\b|quadro|nbr|12721/,'PROJETO'],
+    [/\brg\b|\bcnh\b|identidade|\bcpf\b/,'DOCUMENTO_PESSOAL']];
   for (const [re, c] of r) if (re.test(s)) return c;
   return 'OUTROS';
 }
@@ -22,11 +25,35 @@ function addDoc({pageIds, category, name, order, validade = ''}){
   pageIds.forEach(id => { const p = pageById(id); if (p) p.grouped = true; });
   saveHist(name); return doc;
 }
+const TIPOS_ACEITOS = /\.(pdf|jpe?g|png|webp|tiff?)$/i;
+/* TIFF (padrão de muito scanner), inclusive multipágina: cada página vira uma imagem */
+async function tiffParaImagens(buf){
+  if (!window.UTIF) throw new Error('leitor de TIFF não carregou');
+  const ifds = UTIF.decode(buf).filter(i => i.t256 && i.t257), out = [];
+  for (const ifd of ifds) {
+    UTIF.decodeImage(buf, ifd); const rgba = UTIF.toRGBA8(ifd);
+    const cv = document.createElement('canvas'); cv.width = ifd.width; cv.height = ifd.height;
+    const cx = cv.getContext('2d'), im = cx.createImageData(ifd.width, ifd.height); im.data.set(rgba); cx.putImageData(im, 0, 0);
+    out.push(await reduzirImagem(cv.toDataURL('image/jpeg', .85))); cv.width = cv.height = 0;
+  }
+  if (!out.length) throw new Error('TIFF sem páginas');
+  return out;
+}
+/* Foto de celular muito grande pesa na memória e no OCR: limita o lado maior a 3200 px */
+function reduzirImagem(url, max = 3200){
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => { const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)); if (k >= 1) { res(url); return; }
+      const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', .85)); };
+    img.onerror = () => res(url); img.src = url;
+  });
+}
 async function handleFiles(list, target = {}){
   const arr = [...list];
-  const tiff = arr.filter(f => /\.tiff?$/i.test(f.name));
-  if (tiff.length) toast(`${tiff.length} arquivo(s) TIFF ignorado(s): o navegador não lê TIFF. Converta para PDF.`, 'err');
-  const ok = arr.filter(f => /\.(pdf|jpe?g|png|webp)$/i.test(f.name)).sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric:true, sensitivity:'base'}));
+  const fora = arr.filter(f => !TIPOS_ACEITOS.test(f.name));
+  if (fora.length) toast(`Formato não lido: ${fora.map(f => f.name).slice(0, 3).join(', ')}${fora.length > 3 ? '…' : ''}. Aceita PDF, JPG, PNG, WEBP e TIFF (foto de iPhone em HEIC: exporte como JPG).`, 'err');
+  const ok = arr.filter(f => TIPOS_ACEITOS.test(f.name)).sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric:true, sensitivity:'base'}));
   if (!ok.length) return;
   if (ok.some(f => /\.pdf$/i.test(f.name)) && !window.pdfjsLib) { toast('Leitor de PDF indisponível (sem internet?).', 'err'); return; }
   const novas = [], pendDocs = [];
@@ -35,7 +62,7 @@ async function handleFiles(list, target = {}){
     for (let i = 0; i < ok.length; i++) {
       const f = ok[i]; busy(true, `Lendo ${f.name}`, Math.round(i / ok.length * 100));
       const key = uid(); FILES.set(key, f);
-      const m = f.name.match(/^(\d+) - ([A-Z_]+) - (.+)\.(pdf|jpe?g|png|webp)$/i);
+      const m = f.name.match(/^(\d+) - ([A-Z_]+) - (.+)\.(pdf|jpe?g|png|webp|tiff?)$/i);
       const ids = [];
       if (/\.pdf$/i.test(f.name)) {
         try {
@@ -53,8 +80,13 @@ async function handleFiles(list, target = {}){
           }
           if (pdf.destroy) pdf.destroy();
         } catch (e) { console.error(e); toast(`Não foi possível ler ${f.name} (PDF protegido ou corrompido).`, 'err'); continue; }
+      } else if (/\.tiff?$/i.test(f.name)) {
+        try {
+          const imgs = await tiffParaImagens(await f.arrayBuffer());
+          imgs.forEach((url, j) => { const p = {id:uid(), fileKey:key, name:imgs.length > 1 ? `${f.name.replace(/\.tiff?$/i, '')} · p${j + 1}` : f.name, dataUrl:url, type:'img', pageNum:j + 1, rotation:0, raw:'', ocr:'', hasSig:false, grouped:false}; novas.push(p); ids.push(p.id); });
+        } catch (e) { console.error(e); toast(`Não foi possível ler o TIFF ${f.name}.`, 'err'); continue; }
       } else {
-        const p = {id:uid(), fileKey:key, name:f.name, dataUrl:await readDataUrl(f), type:'img', pageNum:1, rotation:0, raw:'', ocr:'', hasSig:false, grouped:false};
+        const p = {id:uid(), fileKey:key, name:f.name, dataUrl:await reduzirImagem(await readDataUrl(f)), type:'img', pageNum:1, rotation:0, raw:'', ocr:'', hasSig:false, grouped:false};
         novas.push(p); ids.push(p.id);
       }
       if (target.doc) { ids.forEach(id => novas.find(x => x.id === id).grouped = true); target.doc.pageIds.splice(target.at ?? target.doc.pageIds.length, 0, ...ids); if (target.at != null) target.at += ids.length; }
@@ -98,11 +130,11 @@ function renderDocs(){
     return `<article class="dcard${d.collapsed ? ' col' : ''}" data-doc="${d.id}">
       <div class="dtop" draggable="true"><button class="dtog" type="button" data-act="tog" aria-expanded="${!d.collapsed}" aria-label="Expandir ou recolher">▾</button>
         <input class="dord" type="number" min="1" value="${d.order}" data-act="ord" aria-label="Ordem no GED">
-        <span class="dcat">${esc(d.category)}</span><span class="dname">${esc(d.name)}</span><span class="count">${pgs.length} pág.</span>
+        <span class="dcat">${esc(catNome(d.category))}</span><span class="dname">${esc(d.name)}</span><span class="count">${pgs.length} pág.</span>
         ${sigBtns}${venc ? '<span class="badge err">vencido</span>' : ''}
         <button class="btn sm" type="button" data-act="ver">Ver</button><button class="btn sm" type="button" data-act="anexar">Anexar arquivo</button><button class="btn sm danger" type="button" data-act="rm" aria-label="Desfazer documento">✕</button></div>
       <div class="dbody"><div class="dfields">
-        <label>Tipo<select data-act="cat">${CATS.map(c => `<option${c === d.category ? ' selected' : ''}>${c}</option>`).join('')}</select></label>
+        <label>Tipo<select data-act="cat">${CATS.map(c => `<option value="${c}"${c === d.category ? ' selected' : ''}>${catNome(c)}</option>`).join('')}</select></label>
         <label class="grow">Descrição GED<input data-act="name" value="${esc(d.name)}" list="histGED" autocomplete="off"></label>
         <label>Válido até<input type="date" data-act="val" value="${esc(d.validade || '')}"></label></div>
         <div class="strip" data-strip="${d.id}">${pgs.map((p, pi) => `<div class="sthumb" draggable="true" data-pi="${pi}" title="${esc(p.name)} — clique para tirar do documento"><img src="${p.dataUrl}" alt="" style="transform:rotate(${p.rotation}deg)"></div>`).join('')}<span class="strip-drop">solte páginas aqui</span></div></div></article>`;
@@ -174,7 +206,8 @@ async function baixarZip(){
     busy(true, 'Compactando…', 97);
     const blob = await zip.generateAsync({type:'blob'});
     download(blob, `GED_${S.meta.protocolo ? 'Prot_' + san(S.meta.protocolo) + '_' : ''}${todayISO()}.zip`);
-    toast('ZIP do GED gerado.');
+    toast('ZIP do GED gerado. O arquivo de aprendizado baixa em seguida, separado.');
+    setTimeout(baixarAprendizado, 800);
   } catch (e) { console.error(e); toast('Erro ao gerar o ZIP: ' + e.message, 'err'); }
   finally { busy(false); }
 }
@@ -243,7 +276,7 @@ function bindGED(){
     else if (a === 'rm') removeDoc(d.id);
     else if (a === 'ver') { const all = [...S.docs].sort((x, y) => x.order - y.order).flatMap(x => x.pageIds.map(pageById).filter(Boolean)); openViewer(all, all.findIndex(p => p.id === d.pageIds[0])); }
     else if (a === 'sig') validarAssinatura(act.dataset.key);
-    else if (a === 'anexar') { const inp = document.createElement('input'); inp.type = 'file'; inp.multiple = true; inp.accept = '.pdf,.jpg,.jpeg,.png,.webp'; inp.onchange = ev => handleFiles(ev.target.files, {doc:d}); inp.click(); }
+    else if (a === 'anexar') { const inp = document.createElement('input'); inp.type = 'file'; inp.multiple = true; inp.accept = '.pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff'; inp.onchange = ev => handleFiles(ev.target.files, {doc:d}); inp.click(); }
   });
   docs.addEventListener('dblclick', e => { const top = e.target.closest('.dtop'); if (!top || e.target.closest('button,input')) return; const d = S.docs.find(x => x.id === top.closest('.dcard').dataset.doc); d.collapsed = !d.collapsed; renderDocs(); });
   docs.addEventListener('change', e => {

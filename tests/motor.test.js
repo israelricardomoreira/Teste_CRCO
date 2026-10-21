@@ -105,3 +105,22 @@ test('matrícula: texto sem quebras de linha (PDF/OCR) e cruzamento com a ficha'
   assert.ok(X.some(x => x[0] === 'err' && /Continuidade/.test(x[1])));
   assert.ok(X.some(x => x[0] === 'warn' && /Av-3 PENHORA/.test(x[1])));
 });
+
+test('anonimização: nomes viram marcadores estáveis e números pessoais viram #', () => {
+  const an = M.criarAnonimizador(['JOÃO EXEMPLO']);
+  const t = 'vendeu para: JOÃO EXEMPLO, CPF nº 529.982.247-25, RG nº 1234567/SSP-DF, casado com MARIA DA SILVA SOUZA, certidão matrícula nº 156976 01 55 2019 2 00032 264 0009564 82. Depois, JOÃO EXEMPLO vendeu à CONSTRUTORA TESTE LTDA, CNPJ 11.222.333/0001-81. COMPRA E VENDA. Dou fé.';
+  const o = an.anon(t);
+  assert.ok(!/JOÃO|MARIA|SOUZA|TESTE/.test(o), o);
+  assert.ok(!/\d{3}\.\d{3}\.\d{3}-\d{2}|1234567|156976/.test(o), o);
+  assert.equal(o.match(/\[PF_1\]/g).length, 2, 'o mesmo nome vira o mesmo marcador');
+  assert.ok(/\[PJ_\d\]/.test(o), 'empresa vira PJ');
+  assert.ok(o.includes('COMPRA E VENDA') && o.includes('Dou fé'), 'termos registrais ficam');
+  const obj = M.anonimizarObjeto({a:['JOÃO EXEMPLO'], b:{c:'CPF 529.982.247-25'}, n:3}, an);
+  assert.deepEqual(obj, {a:['[PF_1]'], b:{c:'CPF ###.###.###-##'}, n:3});
+});
+
+test('perfil do texto: marcadores e formato dos rótulos de ato', () => {
+  const P = M.perfilTexto(MAT_A);
+  assert.equal(P.marcadores.imovel, 1); assert.equal(P.marcadores.protocolo, 4);
+  assert.equal(P.rotulosAto['R-1-17.118'], 4); assert.equal(P.documentos.cnpj, 1);
+});

@@ -242,6 +242,77 @@ function auditoria(R, I, campos, meta){
     M.alertas.forEach(t => out.push(['warn', t]));
     return out;
   }
-  return {VERSAO:'1.1.0', onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula};
+  /* ---------- Aprendizado: perfil do layout do documento e anonimização ---------- */
+  /* "Impressão digital" do texto: que marcadores e formatos ele tem (sem guardar o conteúdo) */
+  function perfilTexto(texto){
+    const t = String(texto || ''), conta = rx => (t.match(rx.flags.includes('g') ? rx : new RegExp(rx.source, rx.flags + 'g')) || []).length;
+    const linhas = t.split('\n').filter(l => l.trim()), letras = (t.match(/[A-Za-zÀ-ÿ]/g) || []).length;
+    return {
+      caracteres:t.length, linhas:linhas.length, palavras:(t.match(/\S+/g) || []).length,
+      maiusculasPct:letras ? Math.round((t.match(/[A-ZÀ-Ü]/g) || []).length / letras * 100) : 0,
+      lixoOcrPct:t.length ? Math.round((t.match(/[^\wÀ-ÿ\s.,;:()\/ºª°§%$'"–\-]/g) || []).length / t.length * 1000) / 10 : 0,
+      marcadores:{
+        imovel:conta(/IM[OÓ]VEL\s*:/i), proprietario:conta(/PROPRIET[AÁ]RI[OA]S?\s*:/i), registroAnterior:conta(/REGISTRO ANTERIOR\s*:/i),
+        dataAquisicao:conta(/DATA DE AQUISI/i), douFe:conta(/Dou f[ée]/i), selo:conta(/Selo (Eletr[oô]nico|Digital)/i), protocolo:conta(/Protocolo/i),
+        transcricao:conta(/Transcri[cç][aã]o/i), emolumentos:conta(/Emolumentos/i), quadroNBR:conta(/QUADRO\s+I{1,3}V?\b|NBR\s*12\.?721/i),
+        art:conta(/\bART\b|Anota[cç][aã]o de Responsabilidade/i), alvara:conta(/ALVAR[AÁ]/i), certidao:conta(/CERTID[AÃ]O|CERTIFICA/i), qrcode:conta(/QR\s?CODE|autenticidade/i)
+      },
+      rotulosAto:{
+        'R-1-17.118':conta(/\b(?:R|AV|Av)-\d+-\d[\d.]*\d\b/g), 'R.1/17.118':conta(/\b(?:R|AV|Av)\.\d+\/\d[\d.]*\b/g),
+        'R-01':conta(/\b(?:R|AV|Av)-0\d\b/g), 'R1':conta(/\b(?:R|AV)\d+\b/g), 'Registro nº':conta(/Registro\s+n[º°o]\s*\d/gi), 'Averbação nº':conta(/Averba[cç][aã]o\s+n[º°o]\s*\d/gi)
+      },
+      documentos:{cpf:conta(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g), cnpj:conta(/\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g), cgc:conta(/\bCGC\b/g), datasNum:conta(/\b\d{2}\/\d{2}\/\d{4}\b/g), datasExtenso:conta(/\d{1,2}º?\s+de\s+[a-zç]+\s+de\s+\d{4}/gi), areas:conta(/\d,\d{2}\s?m²|\d,\d{2}\s?m2/g)}
+    };
+  }
+  /* Palavras que não são nome de pessoa: se uma sequência em maiúsculas tiver alguma delas, fica como está */
+  const NAO_NOME = new Set(('IMÓVEL IMOVEL PROPRIETÁRIA PROPRIETÁRIO PROPRIETARIA PROPRIETARIO REGISTRO ANTERIOR DATA AQUISIÇÃO AQUISICAO COMPRA VENDA CLÁUSULA CLAUSULA RESOLUTIVA CANCELAMENTO ALTERAÇÃO ALTERACAO ESTADO CIVIL CÓDIGO CODIGO ' +
+    'CASADA CASADO SOLTEIRA SOLTEIRO DIVORCIADA DIVORCIADO VIÚVA VIÚVO COMUNHÃO COMUNHAO PARCIAL UNIVERSAL SEPARAÇÃO BENS REGIME LEI ARTIGO ART DOU FÉ FE LIVRO FLS FOLHA MATRÍCULA MATRICULA PROTOCOLO SELO ELETRÔNICO FISCALIZAÇÃO ' +
+    'ALIENAÇÃO ALIENACAO FIDUCIÁRIA FIDUCIARIA HIPOTECA PENHORA INDISPONIBILIDADE USUFRUTO DOAÇÃO DOACAO PERMUTA INCORPORAÇÃO INCORPORACAO CONSTRUÇÃO CONSTRUCAO AVERBAÇÃO AVERBACAO INSTITUIÇÃO CONDOMÍNIO CONDOMINIO ' +
+    'ITBI DUAM CNH RG CPF CNPJ CGC SSP DETRAN DF GO RJ SP MG QUADRO NBR ABNT ART RRT CREA CAU ALVARÁ ALVARA CERTIDÃO CERTIDAO NEGATIVA POSITIVA PROGRAMA MINHA CASA VIDA PMCMV MCMV TOTAL ÁREA AREA UNIDADE UNIDADES APARTAMENTO ' +
+    'PAVIMENTO TÉRREO TERREO SUPERIOR RESIDENCIAL LOTEAMENTO QUADRA LOTE RUA AVENIDA PARQUE JARDIM SETOR CENTRO CIDADE OCIDENTAL LUZIÂNIA GOIÁS BRASÍLIA ESTADO MUNICÍPIO PREFEITURA SECRETARIA OFICIAL REGISTRADOR TABELIÃO NOTAS ' +
+    'ESCRITURA PÚBLICA PUBLICA CONTRATO PARTICULAR REQUERIMENTO DECLARAÇÃO DECLARACAO MEMORIAL DESCRITIVO CONVENÇÃO CONVENCAO MINUTA EXIGÊNCIA EXIGENCIA NOTA DEVOLUTIVA TRANSCRIÇÃO TRANSCRICAO EMOLUMENTOS FUNDOS ISSQN TAXA JUDICIÁRIA').split(' '));
+  const RX_PJ = /\b(LTDA|S\.?\/?A\.?|EIRELI|EPP|ME|MEI|BANCO|CAIXA ECON[OÔ]MICA|COOPERATIVA|ASSOCIA[CÇ][AÃ]O|FUNDA[CÇ][AÃ]O|CONSTRUTORA|INCORPORADORA|EMPREENDIMENTOS|IM[OÓ]VEIS|ENGENHARIA)\b/i;
+  /* Troca dados pessoais por marcadores estáveis: o mesmo nome vira sempre o mesmo [PF_n] no arquivo inteiro */
+  function criarAnonimizador(nomesConhecidos){
+    const mapa = new Map(), cont = {PF:0, PJ:0};
+    const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+    const token = nome => { const k = norm(nome); if (!k) return ''; if (!mapa.has(k)) { const t = RX_PJ.test(nome) ? 'PJ' : 'PF'; mapa.set(k, `[${t}_${++cont[t]}]`); } return mapa.get(k); };
+    const conhecidos = [...new Set((nomesConhecidos || []).map(s => String(s || '').trim()).filter(s => s.length >= 5))].sort((a, b) => b.length - a.length);
+    conhecidos.forEach(token);
+    const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    function anon(texto){
+      if (texto == null) return texto;
+      let s = String(texto);
+      conhecidos.forEach(n => { const rx = new RegExp(esc(n).replace(/\s+/g, '\\s+'), 'gi'); s = s.replace(rx, token(n)); });
+      s = s.replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, m => m.replace(/\d/g, '#'))
+        .replace(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g, m => m.replace(/\d/g, '#'))
+        .replace(/((?:RG|R\.G\.|identidade|CNH|habilita[cç][aã]o)\s*(?:n[º°o.]*\s*)?:?\s*)([0-9][0-9.\-\/xX]{3,})/gi, (m, a, n) => a + n.replace(/\d/g, '#'))
+        .replace(/\b\d{4,6}(?:\s\d{1,7}){4,}\b/g, m => m.replace(/\d/g, '#'))
+        .replace(/\b\d{10,}\b/g, m => m.replace(/\d/g, '#'))
+        .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[EMAIL]')
+        .replace(/\(?\d{2}\)?\s?9?\d{4}-?\d{4}\b/g, '[TELEFONE]');
+      /* rede de segurança: sequências de 2+ palavras em MAIÚSCULAS (ou Iniciais Maiúsculas) que parecem nome */
+      s = s.replace(/\b([A-ZÀ-Ü][A-ZÀ-Ü'´`-]{1,}(?:\s+(?:D[AEO]S?|E)\s+|\s+)){1,6}[A-ZÀ-Ü][A-ZÀ-Ü'´`-]{1,}\b/g, m => {
+        const ws = m.split(/\s+/).filter(w => !/^(D[AEO]S?|E)$/.test(w));
+        if (ws.length < 2 || ws.some(w => NAO_NOME.has(w) || NAO_NOME.has(norm(w)) || /\d/.test(w))) return m;
+        return token(m);
+      });
+      s = s.replace(/\b([A-ZÀ-Ü][a-zà-ÿ]{2,}(?:\s+(?:d[aeo]s?|e)\s+|\s+)){1,5}[A-ZÀ-Ü][a-zà-ÿ]{2,}\b/g, m => {
+        const ws = m.split(/\s+/).filter(w => !/^(d[aeo]s?|e)$/.test(w));
+        if (ws.length < 2 || ws.some(w => NAO_NOME.has(norm(w)))) return m;
+        return token(m);
+      });
+      return s;
+    }
+    return {anon, total:() => ({pessoas:cont.PF, empresas:cont.PJ})};
+  }
+  /* Anonimiza qualquer objeto (strings dentro de objetos/listas) */
+  function anonimizarObjeto(obj, an){
+    if (typeof obj === 'string') return an.anon(obj);
+    if (Array.isArray(obj)) return obj.map(x => anonimizarObjeto(x, an));
+    if (obj && typeof obj === 'object') { const o = {}; Object.keys(obj).forEach(k => { o[k] = anonimizarObjeto(obj[k], an); }); return o; }
+    return obj;
+  }
+  return {VERSAO:'1.2.0', onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
 })();
 if (typeof module !== 'undefined') module.exports = Motor;

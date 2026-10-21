@@ -149,6 +149,7 @@ section.card>p.muted{margin-bottom:12px;font-size:13px}
 
 /* ===== Etapa 2: Conferência ===== */
 #step-conf.on{display:grid;grid-template-columns:minmax(380px,1fr) minmax(440px,1fr);gap:16px;overflow:hidden}
+#step-conf .panel-b>*:not(.cimg){flex-shrink:0}
 .cimg{flex:1;min-height:240px;background:var(--dark-2);overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative;border-radius:var(--r-md)}
 .cimg img{max-width:100%;max-height:100%;cursor:grab;background:#fff}
 .ctext{height:190px;overflow:auto;white-space:pre-wrap;font:12px/1.6 var(--mono);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-md);padding:8px;user-select:text;margin-top:8px}
@@ -167,6 +168,8 @@ section.card>p.muted{margin-bottom:12px;font-size:13px}
 .srcb{border:0;background:var(--primary-soft);color:var(--primary);border-radius:var(--r-sm);padding:1px 6px;font-size:11px;cursor:pointer;font-weight:600}
 .okc{display:flex;gap:4px;align-items:center;color:var(--muted);margin-left:auto;cursor:pointer;font-weight:600}
 .okc input{width:16px;height:16px}
+.flagb{border:0;background:none;color:var(--border-strong);cursor:pointer;font-size:13px;padding:0 4px;min-height:0}
+.flagb:hover,.flagb.on{color:var(--err)}
 table.lt{width:100%;border-collapse:collapse;font-size:13px}
 table.lt th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:4px;border-bottom:1px solid var(--border)}
 table.lt td{padding:4px;vertical-align:top;border-bottom:1px solid var(--border)}
@@ -245,7 +248,7 @@ dialog label{display:flex;flex-direction:column;font-size:12px;font-weight:600;c
 
 <header class="app-hdr">
   <div class="brand"><span class="logo" aria-hidden="true">QR</span>
-    <div><div class="brand-t">Qualificador CRCO</div><div class="brand-s">Registro de Imóveis · Cidade Ocidental/GO · v1.1.0</div></div></div>
+    <div><div class="brand-t">Qualificador CRCO</div><div class="brand-s">Registro de Imóveis · Cidade Ocidental/GO · v1.2.0</div></div></div>
   <div class="meta">
     <label for="mProt">Protocolo<input id="mProt" data-bind="m:protocolo" autocomplete="off"></label>
     <label for="mTipo">Tipo de ato<select id="mTipo" data-bind="m:tipoAto"></select></label>
@@ -272,13 +275,13 @@ dialog label{display:flex;flex-direction:column;font-size:12px;font-weight:600;c
   <section class="step" id="step-ged" aria-label="Documentos">
     <div class="panel" id="pagesPanel">
       <div class="panel-h"><h2>Páginas</h2><span class="count" id="pgCount">0</span>
-        <div class="row" style="margin-left:auto"><button class="btn sm" id="btnImport" type="button" title="Alt+I">+ Importar</button><input type="file" id="fileIn" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple hidden></div></div>
+        <div class="row" style="margin-left:auto"><button class="btn sm" id="btnImport" type="button" title="Alt+I">+ Importar</button><input type="file" id="fileIn" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff" multiple hidden></div></div>
       <div class="panel-b dropzone" id="pagesZone"><div class="pgrid" id="pagesGrid"></div></div>
       <div class="selbar" id="selBar" hidden><span id="selTxt"></span><button class="btn sm primary" id="btnGroup" type="button" title="Alt+A">Agrupar em documento</button><button class="btn sm" id="btnSelAll" type="button">Sel. tudo</button><button class="btn sm" id="btnClearSel" type="button">Limpar</button></div>
     </div>
     <div class="panel">
       <div class="panel-h"><h2>Documentos do GED</h2><span class="count" id="docCount">0</span>
-        <div class="row" style="margin-left:auto"><button class="btn sm" id="btnToggleAll" type="button">Abrir todos</button><button class="btn sm" id="btnZip" type="button" disabled>Baixar ZIP do GED</button><button class="btn sm danger" id="btnClearAll" type="button">Limpar tudo</button></div></div>
+        <div class="row" style="margin-left:auto"><button class="btn sm" id="btnToggleAll" type="button">Abrir todos</button><button class="btn sm" id="btnZip" type="button" disabled>Baixar ZIP do GED</button><button class="btn sm" id="btnAprend" type="button" title="Baixa só o arquivo de aprendizado (anonimizado)">Aprendizado</button><button class="btn sm danger" id="btnClearAll" type="button">Limpar tudo</button></div></div>
       <div class="panel-b dropzone" id="docsList"></div>
     </div>
   </section>
@@ -411,21 +414,24 @@ dialog label{display:flex;flex-direction:column;font-size:12px;font-weight:600;c
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <div class="busy" id="busy" hidden><div class="busy-box" role="status"><strong id="busyMsg">Processando…</strong><div class="bar"><i id="busyBar"></i></div></div></div>
 
-<script src="lib/pdf.min.js?v=1.1.0"></script>
-<script src="lib/pdf-lib.min.js?v=1.1.0"></script>
-<script src="lib/jszip.min.js?v=1.1.0"></script>
-<script src="motor.js?v=1.1.0"></script>
-<script src="js/nucleo.js?v=1.1.0"></script>
-<script src="js/dominio.js?v=1.1.0"></script>
-<script src="js/estado.js?v=1.1.0"></script>
-<script src="js/navegacao.js?v=1.1.0"></script>
-<script src="js/ged.js?v=1.1.0"></script>
-<script src="js/visualizador.js?v=1.1.0"></script>
-<script src="js/conferencia.js?v=1.1.0"></script>
-<script src="js/matricula.js?v=1.1.0"></script>
-<script src="js/checklist.js?v=1.1.0"></script>
-<script src="js/incorporacao.js?v=1.1.0"></script>
-<script src="js/nota.js?v=1.1.0"></script>
-<script src="js/inicio.js?v=1.1.0"></script>
+<script src="lib/pdf.min.js?v=1.2.0"></script>
+<script src="lib/pdf-lib.min.js?v=1.2.0"></script>
+<script src="lib/jszip.min.js?v=1.2.0"></script>
+<script src="lib/pako_inflate.min.js?v=1.2.0"></script>
+<script src="lib/utif.js?v=1.2.0"></script>
+<script src="motor.js?v=1.2.0"></script>
+<script src="js/nucleo.js?v=1.2.0"></script>
+<script src="js/dominio.js?v=1.2.0"></script>
+<script src="js/estado.js?v=1.2.0"></script>
+<script src="js/navegacao.js?v=1.2.0"></script>
+<script src="js/ged.js?v=1.2.0"></script>
+<script src="js/visualizador.js?v=1.2.0"></script>
+<script src="js/conferencia.js?v=1.2.0"></script>
+<script src="js/matricula.js?v=1.2.0"></script>
+<script src="js/checklist.js?v=1.2.0"></script>
+<script src="js/incorporacao.js?v=1.2.0"></script>
+<script src="js/nota.js?v=1.2.0"></script>
+<script src="js/aprendizado.js?v=1.2.0"></script>
+<script src="js/inicio.js?v=1.2.0"></script>
 </body>
 </html>

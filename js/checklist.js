@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/checklist.js: etapa 3 · checklist editável e modelos por tipo de ato */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/checklist.js'] = '1.1.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/checklist.js'] = '1.2.0';
 /* =====================================================================
    3. CHECKLIST (editável)
    ===================================================================== */
@@ -11,6 +11,7 @@ function carregarModelo(){
   const custom = modeloDe(tipo);
   const itens = custom || [...MODELOS_PADRAO.GERAL, ...(tipo !== 'GERAL' ? (MODELOS_PADRAO[tipo] || []) : [])];
   S.checklist = itens.map(([t, b]) => ({id:uid(), texto:t, base:b || '', status:'pend', obs:''}));
+  AP().ckModelo = S.checklist.map(i => i.texto);
   S.exig = S.exig.filter(e => !e.itemId);
   renderCheck(); markDirty(); toast(custom ? 'Seu modelo foi carregado.' : 'Modelo padrão carregado. Edite e salve como seu modelo.');
 }
@@ -24,7 +25,7 @@ function setStatus(id, st){
   const it = S.checklist.find(x => x.id === id); if (!it) return;
   it.status = st;
   const ex = S.exig.find(e => e.itemId === id);
-  if (st === 'exig' && !ex) S.exig.push({id:uid(), itemId:id, texto:it.texto, fund:it.base, ref:'checklist'});
+  if (st === 'exig' && !ex) S.exig.push({id:uid(), itemId:id, texto:it.texto, sugerido:it.texto, fund:it.base, ref:'checklist'});
   if (st !== 'exig' && ex) S.exig = S.exig.filter(e => e !== ex);
   renderCheck(); markDirty();
 }

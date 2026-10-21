@@ -1,7 +1,11 @@
 /* Qualificador CRCO — js/dominio.js: tipos de ato, categorias do GED, certidões, campos da ficha e modelos de checklist */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/dominio.js'] = '1.1.0';
-const CATS = ['MATRICULA','TITULO','REQUERIMENTO','CERTIDAO','DOCUMENTO_PESSOAL','PROCURACAO','CONTRATO','ESCRITURA','ALVARA','ART_RRT','PROJETO','QUADROS_NBR','MEMORIAL','CONVENCAO','DECLARACAO','PLANTA','ATO_LAVRADO','OUTROS'];
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/dominio.js'] = '1.2.0';
+/* Categorias do GED: exatamente as do sistema do cartório (o código vai no nome do arquivo do ZIP) */
+const CAT_NOME = {ATO_LAVRADO:'Ato Lavrado', CERTIDAO:'Certidão', CONTRATO:'Contrato', DECLARACAO:'Declaração', DOCUMENTO_PESSOAL:'Documento Pessoal', ESCRITURA:'Escritura',
+  MATRICULA:'Matrícula', MEMORIAL:'Memorial', OUTROS:'Outros', PLANTA_ENGENHARIA:'Planta Engenharia', PROCURACAO:'Procuração', PROJETO:'Projeto'};
+const CATS = Object.keys(CAT_NOME);
+const catNome = c => CAT_NOME[c] || c;
 const TIPOS_ATO = {GERAL:'Outro / geral', COMPRA_VENDA:'Compra e venda', ALIENACAO_FIDUCIARIA:'Alienação fiduciária', INCORPORACAO:'Incorporação imobiliária', INST_CONDOMINIO:'Instituição de condomínio', AVERB_CONSTRUCAO:'Averbação de construção'};
 const PAPEIS = ['Transmitente','Adquirente','Devedor','Credor','Incorporador','Proprietário','Interveniente','Procurador','Outro'];
 const CERT = {

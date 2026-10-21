@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/conferencia.js: etapa 2 · conferência lado a lado com origem de cada dado */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/conferencia.js'] = '1.1.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/conferencia.js'] = '1.2.0';
 /* =====================================================================
    2. CONFERÊNCIA
    ===================================================================== */
@@ -8,7 +8,7 @@ const CV = {docId:'', i:0, z:1, x:0, y:0, drag:false, sx:0, sy:0};
 let activeEl = null;
 function confPages(){ if (CV.docId === '__soltas') return S.pages.filter(p => !p.grouped); const d = S.docs.find(x => x.id === CV.docId); return d ? d.pageIds.map(pageById).filter(Boolean) : []; }
 function renderConf(){
-  const opts = S.docs.map(d => `<option value="${d.id}">${String(d.order).padStart(2, '0')} · ${esc(d.category)} · ${esc(d.name)}</option>`);
+  const opts = S.docs.map(d => `<option value="${d.id}">${String(d.order).padStart(2, '0')} · ${esc(catNome(d.category))} · ${esc(d.name)}</option>`);
   if (S.pages.some(p => !p.grouped)) opts.push('<option value="__soltas">Páginas não agrupadas</option>');
   $('cDoc').innerHTML = opts.join('') || '<option value="">Nenhum documento importado</option>';
   if (!S.docs.some(d => d.id === CV.docId) && CV.docId !== '__soltas') { CV.docId = S.docs[0] ? S.docs[0].id : (S.pages.length ? '__soltas' : ''); CV.i = 0; }
@@ -40,7 +40,7 @@ function detect(text){
   return out.slice(0, 80);
 }
 function srcHTML(b){ const s = S.src[b]; if (s && !s.pageId) return `<span class="srcb" title="Origem do dado">📄 ${esc(s.label)}</span>`; return s ? `<button type="button" class="srcb" data-goto="${esc(s.pageId)}" title="Abrir a página de origem">📄 ${esc(s.label)}</button>` : ''; }
-function fmetaHTML(b){ return `<div class="fmeta"><span data-srcfor="${esc(b)}">${srcHTML(b)}</span><label class="okc"><input type="checkbox" data-ok="${esc(b)}"${S.ok[b] ? ' checked' : ''}> conferido</label></div>`; }
+function fmetaHTML(b){ return `<div class="fmeta"><span data-srcfor="${esc(b)}">${srcHTML(b)}</span><label class="okc"><input type="checkbox" data-ok="${esc(b)}"${S.ok[b] ? ' checked' : ''}> conferido</label><button type="button" class="flagb${(AP().notas || []).some(n => n.campo === b) ? ' on' : ''}" data-flag="${esc(b)}" title="Avisar que este dado foi lido errado (vai para o aprendizado)" aria-label="Avisar erro de leitura">⚑</button></div>`; }
 function fieldHTML(f){
   const b = 'c:' + f.k, v = S.campos[f.k] ?? '', id = 'f_' + f.k;
   let inp;
@@ -79,7 +79,7 @@ function certStatus(c){
 }
 function refreshCertStatus(){ S.certidoes.forEach(c => { const el = document.querySelector(`[data-certst="${cssEsc(c.id)}"]`); if (el) el.innerHTML = certStatus(c); }); }
 function updateConfProgress(){ const all = document.querySelectorAll('#confForm [data-ok]'); const ok = [...all].filter(x => x.checked).length; $('confProg').textContent = all.length ? `${ok} de ${all.length} campos conferidos` : ''; }
-function insertActive(raw, p){
+function insertActive(raw, p, como = 'selecao'){
   if (!activeEl || !document.body.contains(activeEl)) { toast('Clique primeiro no campo da ficha que vai receber o dado.', 'err'); return; }
   let v = String(raw || '').trim(); if (!v) { toast('Selecione um trecho do texto primeiro.', 'err'); return; }
   const b = activeEl.dataset.bind;
@@ -93,6 +93,7 @@ function insertActive(raw, p){
     S.src[b] = {pageId:p.id, label:d ? `${String(d.order).padStart(2, '0')} ${d.category} · p.${d.pageIds.indexOf(p.id) + 1}` : `${p.name}`};
     const s = document.querySelector(`[data-srcfor="${cssEsc(b)}"]`); if (s) s.innerHTML = srcHTML(b);
   }
+  registrarManual(b, v, {como, fonte:fonteDe(p && p.id), contexto:trecho(pageText(p), String(raw || '').trim())});
   activeEl.focus(); toast('Dado inserido com a origem registrada. Confira e marque "conferido".');
 }
 function gotoPage(pageId){
@@ -114,7 +115,7 @@ function bindConferencia(){
   $('cUse').addEventListener('mousedown', e => e.preventDefault());
   $('cUse').onclick = () => { const s = String(window.getSelection() || ''); insertActive(s, confPages()[CV.i]); };
   $('cChips').addEventListener('mousedown', e => e.preventDefault());
-  $('cChips').addEventListener('click', e => { const c = e.target.closest('.chip'); if (c) insertActive(c.dataset.v, confPages()[CV.i]); });
+  $('cChips').addEventListener('click', e => { const c = e.target.closest('.chip'); if (c) insertActive(c.dataset.v, confPages()[CV.i], 'chip:' + c.querySelector('b').textContent); });
   const cb = $('cImgBox');
   cb.addEventListener('wheel', e => { e.preventDefault(); CV.z = Math.max(.5, Math.min(6, CV.z + (e.deltaY < 0 ? .2 : -.2))); applyCV(); }, {passive:false});
   cb.addEventListener('mousedown', e => { if (e.button !== 0) return; e.preventDefault(); CV.drag = true; CV.sx = e.clientX - CV.x; CV.sy = e.clientY - CV.y; });
