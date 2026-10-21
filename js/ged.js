@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/ged.js: etapa 1 · documentos (GED): importar, agrupar, ordenar, ZIP e validação de assinatura */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.2.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.3.0';
 /* =====================================================================
    1. DOCUMENTOS (GED)
    ===================================================================== */
@@ -24,6 +24,19 @@ function addDoc({pageIds, category, name, order, validade = ''}){
   S.docs.push(doc); S.docs.sort((a, b) => a.order - b.order);
   pageIds.forEach(id => { const p = pageById(id); if (p) p.grouped = true; });
   saveHist(name); return doc;
+}
+/* Posição de cada palavra na página (0..1): permite capturar texto por área e destacar a busca */
+function palavrasPDF(tc, vp){
+  const out = [], W = vp.width, H = vp.height;
+  tc.items.forEach(it => {
+    const s = it.str; if (!s || !s.trim()) return;
+    const tx = pdfjsLib.Util.transform(vp.transform, it.transform), fh = Math.hypot(tx[2], tx[3]);
+    if (Math.abs(tx[1]) > Math.abs(tx[0])) return; /* texto vertical: fora */
+    const x = tx[4], y = tx[5] - fh * .85, w = (it.width || 0) * vp.scale, L = s.length || 1, re = /\S+/g; let m;
+    while ((m = re.exec(s))) { const x0 = x + w * m.index / L, x1 = x + w * (m.index + m[0].length) / L;
+      out.push({t:m[0], x:x0 / W, y:y / H, w:Math.max(.002, (x1 - x0) / W), h:fh * 1.1 / H}); }
+  });
+  return out;
 }
 const TIPOS_ACEITOS = /\.(pdf|jpe?g|png|webp|tiff?)$/i;
 /* TIFF (padrão de muito scanner), inclusive multipágina: cada página vira uma imagem */
@@ -73,9 +86,9 @@ async function handleFiles(list, target = {}){
             const pg = await pdf.getPage(j), vp = pg.getViewport({scale:1.4});
             const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
             await pg.render({canvasContext:cv.getContext('2d'), viewport:vp}).promise;
-            let raw = '';
-            try { const tc = await pg.getTextContent(); raw = tc.items.map(it => it.str + (it.hasEOL ? '\n' : ' ')).join('').trim(); } catch (e) {}
-            const p = {id:uid(), fileKey:key, name:pdf.numPages > 1 ? `${f.name.replace(/\.pdf$/i, '')} · p${j}` : f.name, dataUrl:cv.toDataURL('image/jpeg', .82), type:'pdf', pageNum:j, rotation:0, raw, ocr:'', hasSig:sig, grouped:false};
+            let raw = '', words = null;
+            try { const tc = await pg.getTextContent(); raw = tc.items.map(it => it.str + (it.hasEOL ? '\n' : ' ')).join('').trim(); words = palavrasPDF(tc, vp); } catch (e) {}
+            const p = {id:uid(), fileKey:key, name:pdf.numPages > 1 ? `${f.name.replace(/\.pdf$/i, '')} · p${j}` : f.name, dataUrl:cv.toDataURL('image/jpeg', .82), type:'pdf', pageNum:j, rotation:0, raw, words, ocr:'', hasSig:sig, grouped:false, chave:f.name + '#' + j};
             cv.width = cv.height = 0; novas.push(p); ids.push(p.id);
           }
           if (pdf.destroy) pdf.destroy();
@@ -83,10 +96,10 @@ async function handleFiles(list, target = {}){
       } else if (/\.tiff?$/i.test(f.name)) {
         try {
           const imgs = await tiffParaImagens(await f.arrayBuffer());
-          imgs.forEach((url, j) => { const p = {id:uid(), fileKey:key, name:imgs.length > 1 ? `${f.name.replace(/\.tiff?$/i, '')} · p${j + 1}` : f.name, dataUrl:url, type:'img', pageNum:j + 1, rotation:0, raw:'', ocr:'', hasSig:false, grouped:false}; novas.push(p); ids.push(p.id); });
+          imgs.forEach((url, j) => { const p = {id:uid(), fileKey:key, name:imgs.length > 1 ? `${f.name.replace(/\.tiff?$/i, '')} · p${j + 1}` : f.name, dataUrl:url, type:'img', pageNum:j + 1, rotation:0, raw:'', ocr:'', hasSig:false, grouped:false, chave:f.name + '#' + (j + 1)}; novas.push(p); ids.push(p.id); });
         } catch (e) { console.error(e); toast(`Não foi possível ler o TIFF ${f.name}.`, 'err'); continue; }
       } else {
-        const p = {id:uid(), fileKey:key, name:f.name, dataUrl:await reduzirImagem(await readDataUrl(f)), type:'img', pageNum:1, rotation:0, raw:'', ocr:'', hasSig:false, grouped:false};
+        const p = {id:uid(), fileKey:key, name:f.name, dataUrl:await reduzirImagem(await readDataUrl(f)), type:'img', pageNum:1, rotation:0, raw:'', ocr:'', hasSig:false, grouped:false, chave:f.name + '#1'};
         novas.push(p); ids.push(p.id);
       }
       if (target.doc) { ids.forEach(id => novas.find(x => x.id === id).grouped = true); target.doc.pageIds.splice(target.at ?? target.doc.pageIds.length, 0, ...ids); if (target.at != null) target.at += ids.length; }
@@ -98,13 +111,13 @@ async function handleFiles(list, target = {}){
   renderGED(); markDirty();
   if (novas.length) toast(`${novas.length} página(s) importada(s).`);
 }
-function renderGED(){ renderPages(); renderDocs(); }
+function renderGED(){ renderMatCard(); renderPages(); renderDocs(); }
 function renderPages(){
   const g = $('pagesGrid'); $('pgCount').textContent = S.pages.length;
   if (!S.pages.length) { g.innerHTML = '<div class="empty">Arraste PDFs ou imagens aqui<br><small>ou cole prints com Ctrl+V · Alt+I para importar</small></div>'; updateSel(); return; }
   g.innerHTML = S.pages.map((p, i) => `<div class="pcard${sel.has(p.id) ? ' sel' : ''}${p.grouped ? ' grp' : ''}" data-id="${p.id}" data-i="${i}" draggable="${!p.grouped}" tabindex="0" role="button" aria-pressed="${sel.has(p.id)}" aria-label="Página ${i + 1}: ${esc(p.name)}${p.grouped ? ' (já agrupada)' : ''}">
     <img src="${p.dataUrl}" alt="" style="transform:rotate(${p.rotation}deg)" loading="lazy">
-    <span class="pnum">${String(i + 1).padStart(2, '0')}</span>${p.hasSig ? '<span class="psig" title="Contém assinatura digital">🔐</span>' : ''}
+    <span class="pnum">${String(i + 1).padStart(2, '0')}</span>${paginaConferida(p) ? '<span class="pok" title="Página conferida">✓</span>' : ''}${p.hasSig ? '<span class="psig" title="Contém assinatura digital">🔐</span>' : ''}
     <span class="pname">${esc(p.name)}</span><button class="pzoom" type="button" data-zoom="${i}" aria-label="Ampliar">🔍</button></div>`).join('');
   updateSel();
 }
@@ -130,7 +143,7 @@ function renderDocs(){
     return `<article class="dcard${d.collapsed ? ' col' : ''}" data-doc="${d.id}">
       <div class="dtop" draggable="true"><button class="dtog" type="button" data-act="tog" aria-expanded="${!d.collapsed}" aria-label="Expandir ou recolher">▾</button>
         <input class="dord" type="number" min="1" value="${d.order}" data-act="ord" aria-label="Ordem no GED">
-        <span class="dcat">${esc(catNome(d.category))}</span><span class="dname">${esc(d.name)}</span><span class="count">${pgs.length} pág.</span>
+        <span class="dcat">${esc(catNome(d.category))}</span><span class="dname">${esc(d.name)}</span><span class="count">${pgs.length} pág.${pgs.some(paginaConferida) ? ` · <span class="${pgs.every(paginaConferida) ? 'okt' : 'warnt'}">${pgs.filter(paginaConferida).length}/${pgs.length} conferidas</span>` : ''}</span>
         ${sigBtns}${venc ? '<span class="badge err">vencido</span>' : ''}
         <button class="btn sm" type="button" data-act="ver">Ver</button><button class="btn sm" type="button" data-act="anexar">Anexar arquivo</button><button class="btn sm danger" type="button" data-act="rm" aria-label="Desfazer documento">✕</button></div>
       <div class="dbody"><div class="dfields">

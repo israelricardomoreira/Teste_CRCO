@@ -124,3 +124,9 @@ test('perfil do texto: marcadores e formato dos rótulos de ato', () => {
   assert.equal(P.marcadores.imovel, 1); assert.equal(P.marcadores.protocolo, 4);
   assert.equal(P.rotulosAto['R-1-17.118'], 4); assert.equal(P.documentos.cnpj, 1);
 });
+
+test('continuidade: parte lançada só com o nome também confere', () => {
+  const R = M.lerMatricula(MAT_A);
+  const X = M.cruzarMatricula(R, {}, [{papel:'Transmitente', nome:'João Exemplo', doc:''}]);
+  assert.ok(X.some(x => x[0] === 'ok' && /Continuidade/.test(x[1])), JSON.stringify(X));
+});

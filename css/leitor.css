@@ -1,0 +1,45 @@
+/* Qualificador CRCO — leitor de páginas (Conferência, Comparar e janela separada) */
+.leitor{display:flex;flex-direction:column;min-height:0;min-width:0;height:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow)}
+.lt-bar{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);background:var(--surface)}
+.lt-bar .grp{display:flex;gap:2px;align-items:center;padding-right:6px;border-right:1px solid var(--border)}
+.lt-doc{width:auto;max-width:230px;min-height:30px;font-size:12px;padding:2px 6px}
+.lt-cnt,.lt-zv{font:12px var(--mono);color:var(--muted);min-width:42px;text-align:center}
+.lt-b{min-height:30px;min-width:30px;padding:2px 8px;border:1px solid transparent;border-radius:6px;background:none;cursor:pointer;font-size:13px;color:var(--text);white-space:nowrap}
+.lt-b:hover:not(:disabled){background:var(--surface-2);border-color:var(--border)}
+.lt-b:disabled{opacity:.35;cursor:not-allowed}
+.lt-b[aria-pressed=true]{background:var(--primary-soft);border-color:var(--primary);color:var(--primary);font-weight:600}
+.lt-conf[aria-pressed=true]{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.lt-pri{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600}
+.lt-pri:hover:not(:disabled){background:var(--primary-hover)!important;color:#fff}
+.lt-cores{display:inline-flex;gap:4px;padding:0 4px}
+.lt-sw{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--border-strong);cursor:pointer;padding:0;min-height:0}
+.lt-sw[aria-pressed=true]{box-shadow:0 0 0 2px var(--text)}
+.lt-busca input{width:170px;min-height:30px;font-size:12px;padding:2px 8px}
+.lt-bres{font-size:12px;color:var(--muted);display:inline-flex;gap:2px;align-items:center;flex-wrap:wrap;max-width:220px}
+.lt-pl{border:1px solid var(--border);background:#fff;border-radius:4px;font-size:11px;padding:0 5px;cursor:pointer;min-height:20px}
+.lt-pl.on{background:#ffe2bf;border-color:#e07000}
+.lt-prog{font-size:12px;color:var(--muted);padding:0 4px}
+.lt-prog.tudo{color:var(--ok);font-weight:700}
+.lt-area{flex:1;min-height:0;overflow:auto;background:#4b535f;position:relative;outline:none}
+.lt-pg{position:relative;margin:14px auto;width:max-content;box-shadow:0 6px 24px rgba(0,0,0,.45)}
+.lt-pg canvas{display:block;background:#fff;touch-action:none}
+.leitor[data-ferr=mao] canvas{cursor:grab}
+.leitor[data-ferr=mao] canvas.arrastando{cursor:grabbing}
+.leitor[data-ferr=hl] canvas,.leitor[data-ferr=ok] canvas,.leitor[data-ferr=cap] canvas,.leitor[data-ferr=risco] canvas{cursor:crosshair}
+.leitor[data-ferr=nota] canvas{cursor:copy}
+.leitor[data-ferr=bor] canvas{cursor:not-allowed}
+.lt-regua{position:absolute;left:0;right:0;height:26px;background:rgba(255,214,0,.16);border-top:1px solid #d9b100;border-bottom:1px solid #d9b100;pointer-events:none}
+.lt-pop{position:absolute;z-index:5;width:270px;background:#fff;border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 10px 30px rgba(0,0,0,.3);padding:10px;display:flex;flex-direction:column;gap:6px}
+.lt-pop textarea{font-size:13px}
+.lt-vazio{color:#e8ecf2;padding:48px 24px;text-align:center}
+.lt-gav{border-top:1px solid var(--border);padding:6px 8px;display:flex;flex-direction:column;gap:6px;background:var(--surface)}
+.lt-linha{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.lt-chips{display:flex;gap:6px;overflow-x:auto;white-space:nowrap;flex:1;min-width:0;padding-bottom:2px}
+.lt-chips .chip{flex-shrink:0}
+.lt-txt{max-height:26vh;overflow:auto;white-space:pre-wrap;font:12px/1.6 var(--mono);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-md);padding:8px;user-select:text}
+.lt-txtbox{display:flex;flex-direction:column;gap:6px}
+.lt-hint{font-size:12px;color:var(--primary)}
+/* janela separada */
+body.visor{height:100vh;overflow:hidden;display:flex;flex-direction:column;background:var(--bg)}
+body.visor #visor{flex:1;min-height:0;padding:6px}
+body.visor .vz-msg{padding:32px;text-align:center}

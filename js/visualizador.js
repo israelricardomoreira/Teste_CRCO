@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/visualizador.js: lupa, régua, contraste, texto/OCR e exigência rápida */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/visualizador.js'] = '1.2.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/visualizador.js'] = '1.3.0';
 /* ---------- OCR (Tesseract.js, carregado sob demanda) ---------- */
 let ocrWorker = null;
 async function ensureOCR(){
@@ -12,6 +12,29 @@ async function ensureOCR(){
   });
   return ocrWorker;
 }
+function dimensoes(url){ return new Promise(res => { const i = new Image(); i.onload = () => res([i.naturalWidth, i.naturalHeight]); i.onerror = () => res([1, 1]); i.src = url; }); }
+/* palavras do OCR com posição, convertidas para a página original (sem giro) */
+async function palavrasOCR(data, src, rot){
+  const [W, H] = await dimensoes(src), out = [];
+  (data && data.blocks || []).forEach(b => (b.paragraphs || []).forEach(pa => (pa.lines || []).forEach(l => (l.words || []).forEach(w => {
+    const t = String(w.text || '').trim(); if (!t || !w.bbox) return;
+    const R = {x:w.bbox.x0 / W, y:w.bbox.y0 / H, w:(w.bbox.x1 - w.bbox.x0) / W, h:(w.bbox.y1 - w.bbox.y0) / H};
+    const [x1, y1] = Leitor.r2o(R.x, R.y, rot), [x2, y2] = Leitor.r2o(R.x + R.w, R.y + R.h, rot);
+    out.push({t, x:Math.min(x1, x2), y:Math.min(y1, y2), w:Math.abs(x2 - x1), h:Math.abs(y2 - y1)});
+  }))));
+  return out;
+}
+/* OCR só de um trecho (retângulo na página original): rápido, usado pela captura ✂ */
+async function ocrRegiao(p, R){
+  const [W, H] = await dimensoes(p.dataUrl), img = new Image();
+  await new Promise(r => { img.onload = r; img.onerror = r; img.src = p.dataUrl; });
+  const sx = Math.max(0, R.x * W), sy = Math.max(0, R.y * H), sw = Math.min(W - sx, R.w * W), sh = Math.min(H - sy, R.h * H);
+  const k = Math.max(1, Math.min(3, 1400 / Math.max(sw, 1)));
+  const c = document.createElement('canvas'); c.width = Math.round(sw * k); c.height = Math.round(sh * k);
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  const w = await ensureOCR(), r = await w.recognize(c.toDataURL('image/png'));
+  return (r.data && r.data.text || '').replace(/[ \t]+/g, ' ').trim();
+}
 async function ocrPages(list){
   try {
     busy(true, 'Preparando OCR (a primeira vez demora)…', 3);
@@ -20,6 +43,7 @@ async function ocrPages(list){
       const p = list[i]; busy(true, `OCR: página ${i + 1} de ${list.length}`, 5 + Math.round(i / list.length * 92));
       const src = p.rotation ? (await toJpeg(p.dataUrl, p.rotation)).data : p.dataUrl;
       const r = await w.recognize(src); p.ocr = (r.data && r.data.text || '').trim(); p.ocrConf = r.data && r.data.confidence != null ? Math.round(r.data.confidence) : null;
+      p.words = await palavrasOCR(r.data, src, p.rotation || 0);
     }
     toast('OCR concluído. Confira o texto: leitura de máquina pode errar.');
   } catch (e) { console.error(e); toast('OCR indisponível: ' + e.message, 'err'); }

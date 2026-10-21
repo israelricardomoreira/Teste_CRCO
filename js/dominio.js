@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/dominio.js: tipos de ato, categorias do GED, certidões, campos da ficha e modelos de checklist */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/dominio.js'] = '1.2.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/dominio.js'] = '1.3.0';
 /* Categorias do GED: exatamente as do sistema do cartório (o código vai no nome do arquivo do ZIP) */
 const CAT_NOME = {ATO_LAVRADO:'Ato Lavrado', CERTIDAO:'Certidão', CONTRATO:'Contrato', DECLARACAO:'Declaração', DOCUMENTO_PESSOAL:'Documento Pessoal', ESCRITURA:'Escritura',
   MATRICULA:'Matrícula', MEMORIAL:'Memorial', OUTROS:'Outros', PLANTA_ENGENHARIA:'Planta Engenharia', PROCURACAO:'Procuração', PROJETO:'Projeto'};
@@ -22,13 +22,13 @@ const CERT = {
   OUTRA:['Outra','']
 };
 const CAMPOS = [
-  {g:'Título', k:'reqData', l:'Data do título / requerimento', t:'date'},
   {g:'Imóvel', k:'matricula', l:'Matrícula nº'},
   {g:'Imóvel', k:'regAnterior', l:'Registro anterior (R-/AV-)'},
   {g:'Imóvel', k:'areaTerreno', l:'Área do terreno (m²)', num:true},
   {g:'Imóvel', k:'cep', l:'CEP'},
   {g:'Imóvel', k:'descricao', l:'Descrição / endereço do imóvel', t:'area', wide:true},
   {g:'Imóvel', k:'confrontacao', l:'Confrontações (matrícula)', t:'area', wide:true},
+  {g:'Título', k:'reqData', l:'Data do título / requerimento', t:'date'},
   {g:'Incorporação', inc:true, k:'incNome', l:'Incorporadora / proprietária', wide:true},
   {g:'Incorporação', inc:true, k:'incCnpj', l:'CNPJ', doc:true},
   {g:'Incorporação', inc:true, k:'incSede', l:'Sede'},

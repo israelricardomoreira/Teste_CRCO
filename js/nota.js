@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/nota.js: etapa 5 · exigências, catálogo e nota devolutiva */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/nota.js'] = '1.2.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/nota.js'] = '1.3.0';
 /* =====================================================================
    5. NOTA DEVOLUTIVA
    ===================================================================== */
@@ -8,6 +8,9 @@ function catalogo(){ return lsGet('qcrco_catalogo', []); }
 function refreshCatalogo(){ const c = catalogo(); $('catExig').innerHTML = c.map(x => `<option value="${esc(x.texto)}">`).join(''); $('catFund').innerHTML = [...new Set(c.map(x => x.fund).filter(Boolean))].map(f => `<option value="${esc(f)}">`).join(''); }
 function renderNota(){
   refreshCatalogo();
+  const tot = S.docs.reduce((n, d) => n + d.pageIds.length, 0), faltam = S.docs.filter(d => d.pageIds.map(pageById).filter(Boolean).some(p => !paginaConferida(p)));
+  $('notaProg').innerHTML = !tot ? '' : !faltam.length ? '<div class="notaprog ok">✓ Todas as páginas dos documentos foram marcadas como conferidas.</div>'
+    : `<div class="notaprog warn">Páginas ainda sem "✓ Conferida": ${faltam.map(d => { const ps = d.pageIds.map(pageById).filter(Boolean); return `${esc(catNome(d.category))} "${esc(d.name)}" (${ps.filter(paginaConferida).length}/${ps.length})`; }).join('; ')}.</div>`;
   const n = S.exig.length;
   $('exList').innerHTML = n ? S.exig.map((e, i) => `<div class="ex" data-ex="${e.id}"><span class="n">${i + 1}.</span>
     <div><textarea data-bind="ex:${e.id}:texto" rows="2" aria-label="Exigência ${i + 1}">${esc(e.texto)}</textarea>${e.ref ? `<div class="ref">Origem: ${esc(e.ref)}</div>` : ''}</div>

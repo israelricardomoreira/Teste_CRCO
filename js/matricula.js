@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/matricula.js: leitura automática da matrícula (preenche a ficha e mostra titular, atos e ônus) */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.2.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.3.0';
 
 /* Texto da matrícula: documento MATRICULA do GED (ou o que está aberto na Conferência), senão o usuário cola */
 function matTextoDoGED(){
@@ -22,10 +22,25 @@ function confrontacoesTexto(R){
   const nome = {'frente':'Frente', 'fundo':'Fundo', 'fundos':'Fundos', 'lado direito':'Lado direito', 'lado esquerdo':'Lado esquerdo'};
   return R.confrontacoes.map(c => `${nome[c.lado] || c.lado}: ${c.com}, ${c.med} m`).join('; ');
 }
-function aplicarMatricula(texto){
+/* acha onde um valor aparece nas páginas (pelas posições das palavras) para o link de origem abrir no trecho certo */
+function localizarNasPaginas(pgs, valor){
+  const nz = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^\w,./-]/g, '');
+  const tk = String(valor || '').split(/\s+/).map(nz).filter(Boolean).slice(0, 5); if (!tk.length) return null;
+  for (const p of pgs) {
+    const W = p.words || [], nw = W.map(w => nz(w.t));
+    for (let i = 0; i < W.length; i++) {
+      let ok = true; for (let j = 0; j < tk.length; j++) { const a = nw[i + j]; if (!a || !(a.startsWith(tk[j]) || tk[j].startsWith(a))) { ok = false; break; } }
+      if (!ok) continue;
+      const ws = W.slice(i, i + tk.length), x = Math.min(...ws.map(w => w.x)), y = Math.min(...ws.map(w => w.y));
+      return {pageId:p.id, reg:{x, y, w:Math.max(...ws.map(w => w.x + w.w)) - x, h:Math.max(...ws.map(w => w.y + w.h)) - y}};
+    }
+  }
+  return null;
+}
+function aplicarMatricula(texto, fonteGED = $('dlgMat')._fonte){
   const R = Motor.lerMatricula(texto);
   if (!R.atos.length && !R.areaNum) { toast('Não reconheci uma matrícula nesse texto. Confira se copiou a abertura (IMÓVEL: …) e os atos (R-/Av-).', 'err'); return false; }
-  const f = $('dlgMat')._fonte, pid = f && f.pgs[0] ? f.pgs[0].id : '';
+  const f = fonteGED, pid = f && f.pgs[0] ? f.pgs[0].id : '';
   const rotulo = `Matrícula ${R.numero || ''}`.trim() + (pid ? '' : ' (texto colado)');
   const valores = {matricula:R.numero, areaTerreno:R.area, descricao:R.imovel, confrontacao:confrontacoesTexto(R), cep:R.cep, regAnterior:R.ultimoAto};
   const preenchidos = [], mantidos = [];
@@ -34,11 +49,15 @@ function aplicarMatricula(texto){
     if (!v) return;
     const atual = String(S.campos[k] || '').trim();
     registrarSugestao('c:' + k, v, {regra:'matricula.' + k, fonte, contexto:trecho(texto, k === 'confrontacao' ? R.confrontacoes.map(c => c.com)[0] : k === 'regAnterior' ? R.ultimoAto.split('-').slice(0, 2).join('-') : v), naoAplicado:!!atual});
-    if (!atual) { S.campos[k] = v; S.src['c:' + k] = {pageId:pid, label:rotulo}; S.ok['c:' + k] = false; preenchidos.push(k); }
+    if (!atual) {
+      const busca = k === 'confrontacao' ? 'confrontando' : k === 'regAnterior' ? R.ultimoAto.split('-').slice(0, 2).join('-') : k === 'descricao' ? R.imovel.split(/\s+/).slice(0, 4).join(' ') : v;
+      const onde = f ? localizarNasPaginas(f.pgs, busca) : null;
+      S.campos[k] = v; S.src['c:' + k] = {pageId:onde ? onde.pageId : pid, label:rotulo, reg:onde ? onde.reg : null}; S.ok['c:' + k] = false; preenchidos.push(k);
+    }
     else if (atual !== v) mantidos.push(k);
   });
   S.mat = {R, fonte:rotulo, lidaEm:new Date().toISOString(), ctxTitular:R.titular ? trecho(texto, R.titular.nome) : '', fonteTipo:fonte.tipo};
-  markDirty(); renderConfForm(); refreshCertStatus();
+  markDirty(); renderConfForm(); refreshCertStatus(); renderMatCard();
   const nomes = k => (CAMPOS.find(c => c.k === k) || {l:k}).l;
   toast(`Matrícula lida: ${preenchidos.length} campo(s) preenchido(s)` + (mantidos.length ? `; mantive o que já estava em ${mantidos.map(nomes).join(', ')} (veja o resumo).` : '. Confira e marque "conferido".'));
   return true;
@@ -70,6 +89,46 @@ function matResumoHTML(){
       <table class="lt" style="margin-top:6px"><thead><tr><th>Ato</th><th>Natureza</th><th>Protocolo</th><th>Data</th><th>Situação</th></tr></thead><tbody>
       ${R.atos.map(a => `<tr><td style="white-space:nowrap"><b>${esc(a.rot)}</b></td><td>${esc(a.natureza)}</td><td>${esc(a.protocolo)}${a.dataProt ? `<br><small class="muted">${esc(a.dataProt)}</small>` : ''}</td><td>${esc(fmtDate(a.data))}</td><td>${matSituacao(a)}</td></tr>`).join('')}
       </tbody></table></details>`;
+}
+/* ---------- 1º passo na etapa Documentos: a matrícula ---------- */
+function renderMatCard(){
+  const c = $('matCard'); if (!c) return;
+  const doc = S.docs.find(d => d.category === 'MATRICULA');
+  if (S.mat && S.mat.R) {
+    const R = S.mat.R, T = R.titular;
+    c.className = 'matcard ok';
+    c.innerHTML = `<span class="mt">✓ Matrícula ${esc(R.numero || '')}</span><span class="ms">${T ? 'Titular: <b>' + esc(T.nomeAtual || T.nome) + '</b> (' + esc(T.ato) + ')' : ''} · ${R.atos.length} ato(s) · ${R.onusAbertos.length ? '<b class="errt">' + R.onusAbertos.length + ' ônus em aberto</b>' : 'sem ônus em aberto'} · ${esc(fmt(R.areaNum))} m²</span>
+      <span style="margin-left:auto;display:flex;gap:8px"><button class="btn sm" type="button" data-mc="ver">Ver na Conferência</button><button class="btn sm" type="button" data-mc="colar">Ler de novo</button></span>`;
+  } else {
+    c.className = 'matcard';
+    c.innerHTML = `<span class="mt">1º · Matrícula do imóvel</span><span class="ms">${doc ? `O documento "${esc(doc.name)}" ainda não foi lido.` : 'Comece por ela: o programa lê a matrícula e já preenche imóvel, titular, ônus e confrontações.'}</span>
+      <span style="margin-left:auto;display:flex;gap:8px">${doc ? '<button class="btn sm primary" type="button" data-mc="ler">Ler a matrícula agora</button>' : '<button class="btn sm primary" type="button" data-mc="imp">Importar matrícula (PDF, imagem ou TIFF)</button>'}<button class="btn sm" type="button" data-mc="colar">Colar o texto</button></span>`;
+  }
+}
+async function lerMatriculaDoDoc(doc){
+  const pgs = doc.pageIds.map(pageById).filter(Boolean), sem = pgs.filter(p => !pageText(p));
+  if (sem.length) await ocrPages(sem);
+  const texto = pgs.map(pageText).join('\n');
+  if (!texto.trim()) { toast('Não consegui texto da matrícula. Cole o texto pelo botão "Colar o texto".', 'err'); return; }
+  if (aplicarMatricula(texto, {doc, pgs})) { if (S.mat.R.numero && /^matr[ií]cula$/i.test(doc.name.trim())) doc.name = 'Matrícula ' + S.mat.R.numero; renderGED(); }
+}
+async function importarMatricula(files){
+  const antes = new Set(S.pages.map(p => p.id));
+  await handleFiles(files, {});
+  const novas = S.pages.filter(p => !antes.has(p.id) && !p.grouped);
+  if (!novas.length) return;
+  const doc = addDoc({pageIds:novas.map(p => p.id), category:'MATRICULA', name:'Matrícula', order:1});
+  renderGED(); await lerMatriculaDoDoc(doc);
+}
+function bindMatCard(){
+  $('fileMat').onchange = e => { if (e.target.files.length) importarMatricula(e.target.files); e.target.value = ''; };
+  $('matCard').addEventListener('click', e => {
+    const b = e.target.closest('[data-mc]'); if (!b) return;
+    if (b.dataset.mc === 'imp') $('fileMat').click();
+    if (b.dataset.mc === 'colar') abrirLeituraMatricula();
+    if (b.dataset.mc === 'ler') { const d = S.docs.find(x => x.category === 'MATRICULA'); if (d) lerMatriculaDoDoc(d); }
+    if (b.dataset.mc === 'ver') { const d = S.docs.find(x => x.category === 'MATRICULA'); if (d) { CV.docId = d.id; CV.i = 0; } goStep('conf'); }
+  });
 }
 function bindMatricula(){
   $('cMat').onclick = abrirLeituraMatricula;

@@ -234,7 +234,9 @@ function auditoria(R, I, campos, meta){
       const docT = dig(M.titular.doc);
       if (!ref.length) out.push(['warn', `Titular atual: ${M.titular.nomeAtual || M.titular.nome}${M.titular.doc ? ' (' + M.titular.doc + ')' : ''} — lance o transmitente/incorporador nas Partes para conferir a continuidade.`]);
       else {
-        const bate = ref.some(p => (docT && dig(p.doc) === docT) || (!docT && String(p.nome || '').toUpperCase().includes(String(M.titular.nome).toUpperCase())));
+        const nz = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+        const nomesT = [M.titular.nome, M.titular.nomeAtual].filter(Boolean).map(nz);
+        const bate = ref.some(p => (docT && dig(p.doc) === docT) || nomesT.some(n => n && (nz(p.nome).includes(n) || n.includes(nz(p.nome)) && nz(p.nome).length > 8)));
         out.push(bate ? ['ok', `Continuidade: o titular atual (${M.titular.nomeAtual || M.titular.nome}, ${M.titular.ato}) é parte do título.`] : ['err', `Continuidade: o titular atual na matrícula é ${M.titular.nomeAtual || M.titular.nome}${M.titular.doc ? ' (' + M.titular.doc + ')' : ''}, que não aparece como transmitente/incorporador no título.`]);
       }
     }
@@ -313,6 +315,6 @@ function auditoria(R, I, campos, meta){
     if (obj && typeof obj === 'object') { const o = {}; Object.keys(obj).forEach(k => { o[k] = anonimizarObjeto(obj[k], an); }); return o; }
     return obj;
   }
-  return {VERSAO:'1.2.0', onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
+  return {VERSAO:'1.3.0', onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
 })();
 if (typeof module !== 'undefined') module.exports = Motor;

@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/incorporacao.js: etapa 4 · quadros da NBR 12721, IV-B, auditoria e minuta */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/incorporacao.js'] = '1.2.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/incorporacao.js'] = '1.3.0';
 /* =====================================================================
    4. INCORPORAÇÃO (NBR 12721)
    ===================================================================== */

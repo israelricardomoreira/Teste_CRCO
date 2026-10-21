@@ -2,7 +2,7 @@
  * checklist, exigências e tempos, e baixa tudo ANONIMIZADO num .json separado (junto com o ZIP do GED).
  * Serve para melhorar a leitura dos documentos a cada versão. Nada é enviado: o arquivo só é baixado. */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/aprendizado.js'] = '1.2.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/aprendizado.js'] = '1.3.0';
 
 function freshAprend(){ return {inicio:new Date().toISOString(), sug:{}, manual:{}, notas:[], tempos:{}, ckModelo:null}; }
 function AP(){ if (!S.aprend) S.aprend = freshAprend(); return S.aprend; }
@@ -93,7 +93,11 @@ function montarAprendizado(){
     incorporacao = {unidades:R.q2.length, tiposPavimento:R.q1.length, blocos:!!S.inc.blOn, precisaoFI:R.p, coefRTLancado:R.q2.filter(x => String(x.r.fiRT || '').trim()).length,
       auditoria:auditoria(R).map(([c, t]) => ({c, t})), minutaGerada:!!($('minMae') && $('minMae').textContent.trim())};
   }
-  const bruto = {campos, manuais, documentos, paginasSoltas, matricula, checklist, exigencias, incorporacao, notas:A.notas};
+  const tipos = {}; let pgConf = 0, notasExig = 0;
+  Object.values(S.anot || {}).forEach(A => { if (A.conferida) pgConf++; (A.itens || []).forEach(i => { const k = i.t === 'hl' ? 'hl-' + i.cor : i.t; tipos[k] = (tipos[k] || 0) + 1; if (i.t === 'nota' && i.exigId) notasExig++; }); });
+  const anotacoes = {paginasConferidas:pgConf, totalPaginas:S.pages.length, marcacoes:tipos, notasQueViraramExigencia:notasExig,
+    capturas:Object.values(A.manual).filter(m => /^captura/.test(m.como || '')).length};
+  const bruto = {campos, manuais, documentos, paginasSoltas, anotacoes, matricula, checklist, exigencias, incorporacao, notas:A.notas};
   const limpo = Motor.anonimizarObjeto(bruto, an);
   let h = 5381; const sem = (S.meta.protocolo || '') + A.inicio; for (let i = 0; i < sem.length; i++) h = ((h << 5) + h + sem.charCodeAt(i)) | 0;
   return Object.assign({formato:'qualificador-crco/aprendizado', versaoFormato:1, app:VERSAO, motor:Motor.VERSAO, geradoEm:new Date().toISOString(),
