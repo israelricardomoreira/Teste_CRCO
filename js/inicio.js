@@ -1,7 +1,7 @@
 /* Qualificador CRCO — js/inicio.js: eventos gerais, atalhos de teclado, conferência de versão e início */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/inicio.js'] = '1.4.0';
-const VERSAO = '1.4.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/inicio.js'] = '1.5.0';
+const VERSAO = '1.5.0';
 const ARQUIVOS = ["js/nucleo.js", "js/leitor.js", "js/dominio.js", "js/estado.js", "js/navegacao.js", "js/ged.js", "js/visualizador.js", "js/conferencia.js", "js/matricula.js", "js/checklist.js", "js/incorporacao.js", "js/quadrospdf.js", "js/ortografia.js", "js/nota.js", "js/aprendizado.js", "js/inicio.js"];
 /* Confere se todos os arquivos vieram da mesma entrega (evita subir só parte da atualização) */
 function checarVersoes(){

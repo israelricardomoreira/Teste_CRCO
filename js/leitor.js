@@ -2,10 +2,10 @@
  * Usado na Conferência, no "Comparar" e nas janelas separadas (visor.html). Não depende dos outros arquivos:
  * conversa com o programa pelo objeto H (HOST da janela principal), então funciona igual em qualquer janela. */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/leitor.js'] = '1.4.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/leitor.js'] = '1.5.0';
 
 window.Leitor = (function(){
-  const VERSAO = '1.4.0';
+  const VERSAO = '1.5.0';
   const PALETA = ['#ffd600', '#7ed957', '#ff6b6b', '#4da3ff', '#ff9f1a', '#ff66c4', '#1d4f91', '#13703f', '#b42318', '#111111'];
   const FERR = [
     ['mao', '✋', 'Mão: arrastar a página e marcar pontos a conferir', 'v'],

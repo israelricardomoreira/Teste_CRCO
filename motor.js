@@ -105,6 +105,17 @@ function calcInc(I){
   return {p, q1, q2, T1, T2, S30, ties, pavChecks, Q3};
 }
 const unitShort = r => (r.bloco ? `Bl. ${r.bloco} ` : '') + r.nome;
+/* compara um valor escrito pelo RT com o calculado, nas casas decimais que o RT usou:
+ * ok = igual depois de arredondar; arred = diferença de até 1 no último dígito (truncou ou arredondou errado: atenção, o registrador avalia);
+ * err = diferença maior. Devolve também o valor correto arredondado. */
+function compararRT(lido, calc, casasPadrao = 2){
+  const s = String(lido ?? '').trim(); if (!s) return null;
+  const m = s.match(/,(\d+)$/), casas = m ? m[1].length : casasPadrao, u = 10 ** -casas, a = parseBR(s), correto = fmt(calc, casas);
+  if (fmt(a, casas) === correto) return {c:'ok', correto, casas};
+  return {c:Math.abs(a - calc) <= 1.5 * u + 1e-9 ? 'arred' : 'err', correto, casas};
+}
+/* data ISO + N dias corridos (validade "de 30 dias" conta a partir da emissão) */
+function somarDias(iso, n){ const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); if (!m || !(n > 0)) return ''; const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + +n)); return d.toISOString().slice(0, 10); }
 const fiOf = x => String(x.r.fiRT || '').trim() !== '' ? parseBR(x.r.fiRT) : x.fi;
 function auditoria(R, I, campos, meta){
   const A = [], tol = 0.05, p = R.p, n = R.q2.length;
@@ -125,10 +136,13 @@ function auditoria(R, I, campos, meta){
   const comRT = R.q2.filter(x => String(x.r.fiRT || '').trim() !== '');
   if (comRT.length) {
     const sumRT = R.q2.reduce((s, x) => s + parseBR(x.r.fiRT), 0);
-    A.push(Math.abs(sumRT - 1) < 0.5 * 10 ** -p ? ['ok', `Soma dos coeficientes do RT = ${fmt(sumRT, p)}.`] : ['err', `Soma dos coeficientes do RT = ${fmt(sumRT, p)} (deveria ser 1).`]);
+    A.push(Math.abs(sumRT - 1) < 0.5 * 10 ** -p ? ['ok', `Soma dos coeficientes do RT = ${fmt(sumRT, p)}.`] : Math.abs(sumRT - 1) <= comRT.length * 10 ** -p + 1e-9 ? ['warn', `Soma dos coeficientes do RT = ${fmt(sumRT, p)}: a diferença para 1 vem do arredondamento (ou truncamento) dos coeficientes. Avalie se aceita.`] : ['err', `Soma dos coeficientes do RT = ${fmt(sumRT, p)} (deveria ser 1).`]);
     if (comRT.length < n) A.push(['warn', `Coeficiente do RT lançado em ${comRT.length} de ${n} unidades.`]);
-    const div = comRT.filter(x => Math.abs(parseBR(x.r.fiRT) - x.fi) > 0.6 * 10 ** -p);
-    A.push(div.length ? ['err', `Coeficiente do RT diverge do calculado em ${div.length} unidade(s): ${div.slice(0, 8).map(x => unitShort(x.r)).join(', ')}${div.length > 8 ? '…' : ''}.`] : ['ok', 'Coeficientes do RT conferem com o cálculo (col. 30 ÷ Σ30).']);
+    const cmp = comRT.map(x => ({x, k:compararRT(x.r.fiRT, x.c[30] / (R.T2[30] || 1), p)}));
+    const div = cmp.filter(o => o.k.c === 'err'), arr = cmp.filter(o => o.k.c === 'arred');
+    if (div.length) A.push(['err', `Coeficiente do RT diverge do calculado em ${div.length} unidade(s): ${div.slice(0, 8).map(o => `${unitShort(o.x.r)} (RT ${o.x.r.fiRT} × correto ${o.k.correto})`).join(', ')}${div.length > 8 ? '…' : ''}.`]);
+    if (arr.length) A.push(['warn', `Coeficiente do RT com diferença de arredondamento em ${arr.length} unidade(s): ${arr.slice(0, 8).map(o => `${unitShort(o.x.r)} RT ${o.x.r.fiRT} × correto ${o.k.correto}`).join('; ')}${arr.length > 8 ? '…' : ''}. Provável truncamento: avalie se aceita. A minuta repete o valor do quadro.`]);
+    if (!div.length && !arr.length) A.push(['ok', 'Coeficientes do RT conferem com o cálculo (col. 30 ÷ Σ30).']);
   }
   if (R.ties.length) A.push(['warn', `Unidades com áreas iguais ficaram com coeficientes diferentes por arredondamento (${R.ties.slice(0, 4).join(' | ')}). Aumente as casas decimais ou siga o quadro do RT.`]);
   const alv = parseBR(campos.alvaraArea);
@@ -142,7 +156,9 @@ function auditoria(R, I, campos, meta){
   if (parseBR(I.q3.cub) <= 0) A.push(['warn', 'CUB não informado: o item 5 do Quadro III fica zerado.']);
   if (R.q1.some(x => x.r.lido) || R.q2.some(x => x.r.lido)) {
     const dif = conferirQuadrosLidos(R, I.lidosTot);
-    A.push(dif.length ? ['err', `Colunas calculadas pelo RT divergem do cálculo em ${dif.length} ponto(s): ${dif.slice(0, 6).join('; ')}${dif.length > 6 ? '…' : ''}.`] : ['ok', 'Todas as colunas calculadas pelo RT nos Quadros I e II (e os totais) conferem com o cálculo.']);
+    if (dif.length) A.push(['err', `Colunas calculadas pelo RT divergem do cálculo em ${dif.length} ponto(s): ${dif.slice(0, 6).join('; ')}${dif.length > 6 ? '…' : ''}.`]);
+    if (dif.arred.length) A.push(['warn', `Diferença de arredondamento em ${dif.arred.length} valor(es) do RT: ${dif.arred.slice(0, 6).join('; ')}${dif.arred.length > 6 ? '…' : ''}. Avalie se aceita; a minuta repete o quadro.`]);
+    if (!dif.length && !dif.arred.length) A.push(['ok', 'Todas as colunas calculadas pelo RT nos Quadros I e II (e os totais) conferem com o cálculo.']);
   }
   const rt = parseBR(I.q3.v13rt);
   if (rt > 0) { const d = Math.abs(rt - R.Q3.v13); A.push(d < 1 ? ['ok', 'Custo global do RT confere com o cálculo do Quadro III.'] : ['err', `Custo global do RT (R$ ${fmt(rt)}) difere do calculado (R$ ${fmt(R.Q3.v13)}) em R$ ${fmt(d)}.`]); }
@@ -341,7 +357,9 @@ function auditoria(R, I, campos, meta){
     const iso = d => { const m = d.match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
     const val = t.match(/(?:valida ate|validade(?: ate)?|valido ate)\s*:?\s*(?:o dia\s*)?(\d{2}\/\d{2}\/\d{4})/), em = t.match(/(?:emitida|emissao|expedida|gerada|data da certidao|emitido)\D{0,25}(\d{2}\/\d{2}\/\d{4})/);
     const qualquer = t.match(/\d{2}\/\d{2}\/\d{4}/);
-    return {tipo, res, emissao:em ? iso(em[1]) : (qualquer ? iso(qualquer[0]) : ''), validade:val ? iso(val[1]) : ''};
+    const emissao = em ? iso(em[1]) : (qualquer ? iso(qualquer[0]) : ''), dm = t.match(/(?:validade|valida|valido|prazo)[^.]{0,40}?\b(\d{1,3})\s*(?:\([a-z ]+\)\s*)?dias/);
+    const dias = dm ? +dm[1] : null;
+    return {tipo, res, emissao, validade:val ? iso(val[1]) : (dias && emissao ? somarDias(emissao, dias) : ''), dias};
   }
   /* ---------- Quadros I e II da NBR 12721 a partir do PDF (posição das palavras) ----------
    * Os quadros trazem uma linha com os números das colunas (1..18 no QI e 19..38 no QII).
@@ -405,14 +423,39 @@ function auditoria(R, I, campos, meta){
   }
   /* compara as colunas calculadas que o RT escreveu com as calculadas aqui (depois de importar) */
   function conferirQuadrosLidos(R, totais){
-    const dif = [], tol = .015;
-    R.q1.forEach(x => { const l = x.r.lido; if (!l) return; [5, 6, 10, 11, 15, 16, 17, 18].forEach(c => { if (l[c] == null) return; const a = parseBR(l[c]), b = x.c[c] || 0; if (Math.abs(a - b) > tol) dif.push(`QI ${x.r.nome} col. ${c}: RT ${fmt(a)} × calculado ${fmt(b)}`); }); });
-    R.q2.forEach(x => { const l = x.r.lido; if (!l) return; [23, 24, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38].forEach(c => { if (l[c] == null) return; const a = parseBR(l[c]), b = x.c[c] || 0; if (Math.abs(a - b) > tol) dif.push(`QII ${unitShort(x.r)} col. ${c}: RT ${fmt(a)} × calculado ${fmt(b)}`); }); });
-    if (totais && totais.q1) [17, 18].forEach(c => { const t = totais.q1.v[c]; if (t != null && Math.abs(parseBR(t) - R.T1[c]) > tol) dif.push(`Total QI col. ${c}: RT ${t} × calculado ${fmt(R.T1[c])}`); });
-    if (totais && totais.q2) [37, 38].forEach(c => { const t = totais.q2.v[c]; if (t != null && Math.abs(parseBR(t) - R.T2[c]) > tol) dif.push(`Total QII col. ${c}: RT ${t} × calculado ${fmt(R.T2[c])}`); });
-    return dif;
+    const dif = [], arred = [];
+    const ver = (lido, calc, rot) => { const k = compararRT(lido, calc); if (!k || k.c === 'ok') return; (k.c === 'err' ? dif : arred).push(`${rot}: RT ${lido} × ${k.c === 'err' ? 'calculado' : 'correto'} ${k.correto}`); };
+    R.q1.forEach(x => { const l = x.r.lido; if (!l) return; [5, 6, 10, 11, 15, 16, 17, 18].forEach(c => { if (l[c] != null) ver(l[c], x.c[c] || 0, `QI ${x.r.nome} col. ${c}`); }); });
+    R.q2.forEach(x => { const l = x.r.lido; if (!l) return; [23, 24, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38].forEach(c => { if (l[c] != null) ver(l[c], x.c[c] || 0, `QII ${unitShort(x.r)} col. ${c}`); }); });
+    if (totais && totais.q1) [17, 18].forEach(c => { const t = totais.q1.v[c]; if (t != null) ver(t, R.T1[c], `Total QI col. ${c}`); });
+    if (totais && totais.q2) [37, 38].forEach(c => { const t = totais.q2.v[c]; if (t != null) ver(t, R.T2[c], `Total QII col. ${c}`); });
+    dif.arred = arred; return dif;
   }
   /* Quadro III: CUB, mês, padrão e custo global (texto da página) */
+  /* composição das unidades no memorial / convenção: "Apartamento 101 será composto de …;" e
+   * "Os apartamentos 101, 102 e 103 serão compostos de …". Devolve {nomeDaUnidade: {texto, trecho}} para as unidades pedidas. */
+  function lerComposicoes(texto, nomes){
+    const t = String(texto || '').replace(/-\s*\n\s*/g, '').replace(/\s+/g, ' '), out = {};
+    const chave = n => { const d = String(n).replace(/^0+(?=\d)/, '').toUpperCase().replace(/[^A-Z0-9]/g, ''); return d; };
+    const alvo = new Map((nomes || []).map(n => [chave(n), n]));
+    const rx = /\b(?:ser[áa]o?|s[ãa]o|é|est[áa]o?|fica(?:r[áa]o?)?)?\s*(?:compost|constitu[íi]d|formad)[oa]s?\s+(?:de|por)\s*:?\s*/gi; let m;
+    while ((m = rx.exec(t))) {
+      const antes = t.slice(Math.max(0, m.index - 160), m.index);
+      const u = antes.match(/(?:apartamentos?|aptos?\.?|aps?\.?|unidades?(?:\s+aut[ôo]nomas?)?|casas?|salas?|lojas?|sobrados?|kitnets?)\s+((?:n[º°o.]*\s*)?[\w-]{1,8}(?:\s*(?:,|\be\b|\ba\b|\bao\b|\/)\s*(?:n[º°o.]*\s*)?[\w-]{1,8})*)[^.;]{0,40}$/i);
+      if (!u) continue;
+      let ids = []; const L = u[1].replace(/n[º°o.]*\s*/gi, '');
+      const faixa = L.match(/^(\d+)\s*(?:a|ao)\s*(\d+)$/i);
+      if (faixa && +faixa[2] - +faixa[1] < 60) { for (let k = +faixa[1]; k <= +faixa[2]; k++) ids.push(String(k)); ids = ids.filter(i => alvo.has(chave(i))); }
+      else ids = L.split(/\s*(?:,|\be\b|\/)\s*/i).map(x => x.trim()).filter(Boolean);
+      const resto = t.slice(m.index + m[0].length), fim = resto.search(/;|\.\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ])|\.\s*$|\s(?=(?:Pavimento|Apartamento|Unidade)\s+[\wº°]+\s*(?:ser[áa]|:))/);
+      let comp = (fim < 0 ? resto.slice(0, 400) : resto.slice(0, fim)).trim().replace(/[.,:]$/, '');
+      if (comp.length < 4 || comp.length > 600) continue;
+      ids.forEach(id => { const k = chave(id); if (alvo.has(k) && !out[alvo.get(k)]) out[alvo.get(k)] = {texto:comp, trecho:(u[0] + m[0] + comp).slice(-700)}; });
+    }
+    return out;
+  }
+  /* composições iguais (ignorando espaços, caixa e pontuação final) para agrupar "Apartamentos 101 e 102 compostos de" */
+  function chaveComposicao(c){ return String(c || '').normalize('NFC').replace(/\s+/g, ' ').trim().replace(/[.;,]+$/, '').toUpperCase(); }
   function lerQuadroIII(texto){
     const t = String(texto || '').replace(/\s+/g, ' '), o = {};
     const mes = t.match(/Custo Unit[aá]rio B[aá]sico para o M[eê]s de\s+([a-zç]+)\s+de\s+(\d{4})/i);
@@ -425,6 +468,6 @@ function auditoria(R, I, campos, meta){
     if (o.padrao) o.padrao = o.padrao.replace(/^(R|PP|CAL|CSL)-?(\d+)-?/, '$1$2-').replace(/-$/, '');
     return o;
   }
-  return {VERSAO:'1.4.0', onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
+  return {VERSAO:'1.5.0', onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
 })();
 if (typeof module !== 'undefined') module.exports = Motor;

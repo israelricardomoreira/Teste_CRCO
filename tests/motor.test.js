@@ -164,3 +164,21 @@ test('continuidade conta a incorporadora dos campos da incorporação', () => {
   const R = M.lerMatricula(MAT_A);
   assert.ok(M.cruzarMatricula(R, {incNome:'JOÃO EXEMPLO'}, []).some(x => x[0] === 'ok' && /Continuidade/.test(x[1])));
 });
+
+test('composições do memorial: por unidade, em lista e em faixa', () => {
+  const t = 'Pavimento Térreo: Apartamento 101 será composto de sala, cozinha e vaga n° 101;\nApartamento 102 será composto de: sala e quarto; Os apartamentos 201, 202 e 203 serão compostos de sala, cozinha e banheiro. Aptos 301 a 302 serão compostos de sala.';
+  const r = M.lerComposicoes(t, ['101', '102', '201', '202', '203', '301', '302']);
+  assert.equal(r['101'].texto, 'sala, cozinha e vaga n° 101');
+  assert.equal(r['102'].texto, 'sala e quarto');
+  assert.equal(r['203'].texto, 'sala, cozinha e banheiro');
+  assert.equal(r['302'].texto, 'sala');
+  assert.equal(M.chaveComposicao('Sala e  quarto.'), M.chaveComposicao('sala e quarto'));
+});
+test('arredondamento do RT: truncado vira atenção, não erro', () => {
+  assert.equal(M.compararRT('0,1799', 0.179999999).c, 'arred');
+  assert.equal(M.compararRT('0,1799', 0.179999999).correto, '0,1800');
+  assert.equal(M.compararRT('0,1800', 0.179999999).c, 'ok');
+  assert.equal(M.compararRT('0,1750', 0.179999999).c, 'err');
+  assert.equal(M.compararRT('12,35', 12.349).c, 'ok');
+  assert.equal(M.compararRT('12,34', 12.349).c, 'arred');
+});

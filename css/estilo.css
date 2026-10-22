@@ -253,8 +253,7 @@ dialog label{display:flex;flex-direction:column;font-size:12px;font-weight:600;c
 .notaprog{font-size:13px;padding:8px 10px;border-radius:var(--r-md);margin-bottom:8px}
 .notaprog.ok{background:var(--ok-soft);color:var(--ok)}.notaprog.warn{background:var(--warn-soft);color:var(--warn)}
 
-table.q textarea.comp{min-width:380px;width:100%;min-height:52px;font-size:12px;line-height:1.4;padding:4px 6px;resize:vertical}
-table.q select.casa{min-height:20px;height:20px;padding:0 2px;font-size:10px;width:auto;margin-top:2px;background:#fff;color:var(--text);border-radius:3px}
+table.q textarea.comp{min-height:34px;font-size:12px;line-height:1.4;padding:4px 6px;resize:vertical}
 table.q td.c.mis{color:var(--err)}
 
 /* ficha: validações, resumo e texto da matrícula */
@@ -281,3 +280,49 @@ mark{border-radius:3px;padding:0 1px;color:inherit}
 .rev-i{display:grid;grid-template-columns:64px 1fr auto;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border);font-size:13px}
 .rev-n{font:600 11px var(--mono);color:var(--primary)}
 .rev-s{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+
+table.q td.c.arr,table.q input.arr{background:#fff6d6!important;color:#8a5a00;box-shadow:inset 0 0 0 1px #e8b400;cursor:help}
+.casas{display:inline-flex;align-items:center;gap:2px;margin-top:3px;font:600 10px var(--mono);white-space:nowrap}
+.casas button{width:16px;height:16px;min-height:0;padding:0;border:0;border-radius:3px;background:rgba(255,255,255,.18);color:inherit;font:700 12px/16px var(--font);cursor:pointer}
+.casas button:hover{background:rgba(255,255,255,.4)}
+.casas b{min-width:12px;text-align:center}
+.casas.g{font-size:14px;gap:6px;margin-top:4px}
+.casas.g button{width:30px;height:30px;font-size:18px;line-height:30px;background:var(--surface-2);border:1px solid var(--border);color:var(--text)}
+.casas.g button:hover{background:#e6ecf5}
+.lbl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
+td.compcel.pend{background:#fff6d6!important;box-shadow:inset 3px 0 0 #e8b400}
+td.compcel.pend textarea{background:#fffbea;border-color:#e8b400}
+.compact{display:flex;gap:4px;margin-top:3px}
+.btn.ok{border-color:var(--ok);color:var(--ok)}
+.fis{display:inline-flex;flex-wrap:wrap;gap:4px;margin-right:6px;vertical-align:baseline}
+.fi{font:600 11px var(--mono);background:#eef3fb;border:1px solid #c9d6ea;border-radius:10px;padding:0 6px;white-space:nowrap}
+.fi b{color:var(--primary);margin-right:3px}
+.pendtag{font-size:11px;background:#fff6d6;border:1px solid #e8b400;border-radius:8px;padding:0 6px;color:#8a5a00}
+tr.rs-comp{cursor:pointer}
+dialog.flut{position:fixed;inset:auto auto 16px 16px;margin:0;width:min(620px,94vw);max-height:78vh;display:flex;flex-direction:column;resize:both;overflow:auto;box-shadow:0 12px 40px rgba(20,30,50,.35);z-index:50}
+dialog.flut:not([open]){display:none}
+dialog.flut .mattxt{max-height:none;flex:1;min-height:200px}
+body.matjan{margin:0;padding:0 14px 14px;background:var(--surface,#fff)}
+.mj-h{position:sticky;top:0;z-index:2;display:flex;gap:8px;align-items:center;padding:10px 0;background:inherit;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.mj-h input{flex:1;min-width:160px}
+body.matjan .mattxt{max-height:none;overflow:visible}
+mark.mj-b{background:#ffef7a;outline:1px solid #d4b400}mark.mj-b.on{background:#ff9f43}
+.certbar{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px 12px;background:#eef6ff;border-bottom:1px solid #c9d6ea;font-size:12px}
+.certbar label{display:inline-flex;align-items:center;gap:4px;font-weight:600;color:var(--muted)}
+.certbar input[type=date]{width:140px;min-height:28px;padding:2px 6px}
+.certbar select{width:auto;min-height:28px;padding:2px 6px}
+input.dias{width:80px;min-height:28px;padding:2px 6px}
+td input.dias{margin-top:4px;width:100%}
+.cb-st{font-size:12px}
+/* Quadros I e II: inteiros na página (sem rolagem própria na vertical) e mais compactos para caber na largura */
+#q1Card .tbl-wrap,#q2Card .tbl-wrap{max-height:none;overflow-y:visible}
+#q1Card table.q,#q2Card table.q{width:100%}
+table.q input{width:100%;min-width:62px}
+table.q input.t{min-width:92px}
+table.q td{padding:2px 1px}
+table.q th{padding:4px 3px;font-size:11px}
+tr.comprow td{background:#fafbfd;padding:3px 6px 6px}
+.compbox{display:flex;gap:8px;align-items:flex-start}
+.complbl{flex:0 0 150px;font-size:11px;color:var(--muted);padding-top:6px;text-align:right}
+.compbox textarea.comp{flex:1;min-width:0;min-height:34px;width:auto}
+.compbox .compact{margin-top:0;flex:0 0 auto}

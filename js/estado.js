@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/estado.js: estado da análise, salvar/abrir (.gori), importação da Calculadora GO-RI v3 e ligação dos campos */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/estado.js'] = '1.4.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/estado.js'] = '1.5.0';
 function freshInc(){
   return {blOn:false, blN:'2', blTipo:'Letras', denom:'APARTAMENTO', destinacao:'residenciais', precFI:'6',
     pavs:[{id:uid(),nome:'Térreo',qtd:'1',und:'3',inicio:'101'},{id:uid(),nome:'Superior',qtd:'1',und:'3',inicio:'201'}],

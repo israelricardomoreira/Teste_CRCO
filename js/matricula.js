@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/matricula.js: leitura automática da matrícula (preenche a ficha e mostra titular, atos e ônus) */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.4.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.5.0';
 
 /* Texto da matrícula: documento MATRICULA do GED (ou o que está aberto na Conferência), senão o usuário cola */
 function matTextoDoGED(){
@@ -151,8 +151,9 @@ function bindMatricula(){
 }
 
 /* ---------- texto da matrícula com o que o programa leu em destaque ---------- */
-function abrirTextoMatricula(alvo){
-  if (!S.mat || !S.mat.texto) { toast('Não há texto guardado desta matrícula (leia de novo para guardar).', 'err'); return; }
+/* texto da matrícula com o que o programa extraiu em destaque (usado no diálogo e na janela separada) */
+function matTextoHTML(){
+  if (!S.mat || !S.mat.texto) return '';
   const T = S.mat.texto, R = S.mat.R, faixas = [];
   const marcar = (val, cls, tit, todas) => { if (!val) return; const v = String(val); let i = T.indexOf(v); while (i >= 0) { faixas.push([i, i + v.length, cls, tit]); if (!todas) break; i = T.indexOf(v, i + v.length); } };
   marcar(R.imovel, 'mk-imovel', 'Descrição do imóvel (campo Descrição)');
@@ -167,8 +168,22 @@ function abrirTextoMatricula(alvo){
   let html = '', pos = 0;
   faixas.forEach(([i, j, cls, tit]) => { if (i < pos) return; html += esc(T.slice(pos, i)) + `<mark class="${cls}" title="${esc(tit)}">${esc(T.slice(i, j))}</mark>`; pos = j; });
   html += esc(T.slice(pos));
-  $('matTxtView').innerHTML = html;
-  const dlg = $('dlgMatTxt'); if (!dlg.open) dlg.showModal();
+  return html;
+}
+const MATJAN = {win:null};
+function abrirJanelaMatricula(){
+  if (!S.mat || !S.mat.texto) { toast('Não há texto de matrícula. Importe ou cole a matrícula no início da etapa Documentos.', 'err'); return; }
+  if (MATJAN.win && !MATJAN.win.closed) { MATJAN.win.focus(); MATJAN.win.postMessage({qcrco:'mat'}, location.origin); return; }
+  MATJAN.win = window.open('mattxt.html', 'qcrco_matricula', 'width=760,height=980');
+  if (!MATJAN.win) { toast('O navegador bloqueou a janela: permita pop-ups deste site.', 'err'); return; }
+  if ($('dlgMatTxt').open) $('dlgMatTxt').close();
+}
+function abrirTextoMatricula(alvo){
+  if (!S.mat || !S.mat.texto) { toast('Não há texto guardado desta matrícula (leia de novo para guardar).', 'err'); return; }
+  if (MATJAN.win && !MATJAN.win.closed) { MATJAN.win.focus(); MATJAN.win.postMessage({qcrco:'mat', alvo}, location.origin); return; }
+  $('matTxtView').innerHTML = matTextoHTML();
+  /* sem bloquear a tela: dá para copiar do texto e colar na ficha com ele aberto */
+  const dlg = $('dlgMatTxt'); if (!dlg.open) dlg.show();
   const mapa = {'c:areaTerreno':'mk-area', 'c:descricao':'mk-imovel', 'c:confrontacao':'mk-conf', 'c:cep':'mk-cep', 'c:matricula':'mk-ato', 'c:regAnterior':'mk-ato'};
   const cls = mapa[alvo]; let el = cls ? $('matTxtView').querySelector('.' + cls) : null;
   if (alvo === 'c:regAnterior') { const all = $('matTxtView').querySelectorAll('.mk-ato'); el = all[all.length - 1] || el; }
@@ -177,4 +192,14 @@ function abrirTextoMatricula(alvo){
 function bindTextoMatricula(){
   document.addEventListener('click', e => { const b = e.target.closest('[data-mattxt]'); if (b) abrirTextoMatricula(b.dataset.mattxt); });
   $('matTxtFechar').onclick = () => $('dlgMatTxt').close();
+  $('matTxtJanela').onclick = abrirJanelaMatricula;
+  /* arrastar a caixa do texto da matrícula pelo título (fica onde você deixou) */
+  const dlg = $('dlgMatTxt'), alca = dlg.querySelector('.row');
+  try { const pos = JSON.parse(localStorage.getItem('qcrco_matpos') || 'null'); if (pos) Object.assign(dlg.style, {left:pos.l + 'px', top:pos.t + 'px', right:'auto', bottom:'auto'}); } catch (e) {}
+  alca.style.cursor = 'move';
+  alca.addEventListener('pointerdown', e => { if (e.target.closest('button')) return; const r = dlg.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top; alca.setPointerCapture(e.pointerId);
+    const mv = ev => { const l = Math.max(0, Math.min(innerWidth - 120, ev.clientX - dx)), t = Math.max(0, Math.min(innerHeight - 60, ev.clientY - dy)); Object.assign(dlg.style, {left:l + 'px', top:t + 'px', right:'auto', bottom:'auto'}); };
+    const up = () => { alca.removeEventListener('pointermove', mv); alca.removeEventListener('pointerup', up); const r2 = dlg.getBoundingClientRect(); try { localStorage.setItem('qcrco_matpos', JSON.stringify({l:Math.round(r2.left), t:Math.round(r2.top)})); } catch (e) {} };
+    alca.addEventListener('pointermove', mv); alca.addEventListener('pointerup', up); });
+  $('cMatTxt').onclick = () => abrirTextoMatricula('');
 }

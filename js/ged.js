@@ -1,11 +1,39 @@
 /* Qualificador CRCO — js/ged.js: etapa 1 · documentos (GED): importar, agrupar, ordenar, ZIP e validação de assinatura */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.4.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.5.0';
 /* =====================================================================
    1. DOCUMENTOS (GED)
    ===================================================================== */
 const pageById = id => S.pages.find(p => p.id === id);
 const hasSig = buf => { try { return new TextDecoder('latin1').decode(buf).includes('/ByteRange'); } catch (e) { return false; } };
+/* tipo do documento pelo TEXTO do topo da 1ª página (título) — mais confiável que o nome do arquivo */
+function detectCatTexto(txt){
+  const t = String(txt || '').slice(0, 700).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ');
+  if (!t.trim()) return null;
+  const r = [[/MATRICULA\s*(?:N[O.º°]*)?\s*\d[\d.]*|LIVRO\s*(?:N[O.º°]*\s*)?2\b.*REGISTRO GERAL|CERTIDAO DE INTEIRO TEOR/, 'MATRICULA'],
+    [/ESCRITURA PUBLICA|ESCRITURA DE /, 'ESCRITURA'], [/PROCURACAO|SUBSTABELECIMENTO/, 'PROCURACAO'],
+    [/ANOTACAO DE RESPONSABILIDADE TECNICA|REGISTRO DE RESPONSABILIDADE TECNICA|\bART\b N|ALVARA|REQUERIMENTO|CONVENCAO DE CONDOMINIO|MINUTA DA CONVENCAO|QUADRO I\b|NBR 12\.?721/, 'OUTROS'],
+    [/MEMORIAL DESCRITIVO|MEMORIAL DE INCORPORACAO/, 'MEMORIAL'],
+    [/CERTIDAO|CERTIFICA(?:MOS)? QUE|NADA CONSTA|CND\b|CPEN/, 'CERTIDAO'],
+    [/CONTRATO|INSTRUMENTO PARTICULAR|ALTERACAO CONTRATUAL|CONSOLIDACAO/, 'CONTRATO'],
+    [/DECLARACAO|DECLARA(?:MOS)? (?:PARA OS DEVIDOS FINS|QUE)/, 'DECLARACAO'],
+    [/CARTEIRA NACIONAL DE HABILITACAO|CARTEIRA DE IDENTIDADE|REGISTRO GERAL\b(?!.*LIVRO)|DOCUMENTO DE IDENTIDADE/, 'DOCUMENTO_PESSOAL'],
+    [/PROJETO ARQUITETONICO|PROJETO DE ARQUITETURA/, 'PROJETO'], [/PLANTA (?:BAIXA|DE SITUACAO|DE LOCACAO)/, 'PLANTA_ENGENHARIA'],
+    [/TRASLADO|ATO LAVRADO/, 'ATO_LAVRADO']];
+  for (const [re, c] of r) if (re.test(t)) return c;
+  return null;
+}
+/* "assinatura" do documento (primeiras palavras do topo) para lembrar a escolha do usuário */
+function assinaturaDoc(txt){ return String(txt || '').slice(0, 300).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z ]/g, ' ').split(/\s+/).filter(w => w.length > 3).slice(0, 6).join(' '); }
+function sugerirCategoria(nome, txt){
+  const ass = assinaturaDoc(txt), mem = ass.split(' ').length >= 3 ? lsGet('qcrco_catmem', {})[ass] : null;
+  const pn = detectCat(nome), pt = detectCatTexto(txt);
+  if (mem) return {cat:mem, fonte:'memoria', pn, pt, ass};
+  if (pn !== 'OUTROS') return {cat:pn, fonte:'nome', pn, pt, ass};
+  if (pt) return {cat:pt, fonte:'texto', pn, pt, ass};
+  return {cat:'OUTROS', fonte:'padrao', pn, pt, ass};
+}
+function lembrarCategoria(ass, cat){ if (!ass || ass.split(' ').length < 3) return; const m = lsGet('qcrco_catmem', {}); m[ass] = cat; const ks = Object.keys(m); if (ks.length > 400) delete m[ks[0]]; lsSet('qcrco_catmem', m); }
 function detectCat(s){
   s = (s || '').toLowerCase();
   /* Alvará, ART/RRT e quadros da NBR vão em Projeto; requerimento e convenção em Outros (ajuste aqui se o cartório usar outra) */
@@ -195,7 +223,7 @@ function openGroup(ids){
   const dlg = $('dlgGroup'); dlg._ids = ids;
   const sug = (pageById(ids[0]).name || '').replace(/\.[^/.]+$/, '').replace(/ · p\d+$/, '');
   $('dgSub').textContent = `${ids.length} página(s) selecionada(s)`;
-  $('dgOrd').value = Math.max(0, ...S.docs.map(d => d.order)) + 1; $('dgCat').value = detectCat(sug); $('dgName').value = sug; $('dgVal').value = '';
+  $('dgOrd').value = Math.max(0, ...S.docs.map(d => d.order)) + 1; dlg._sug = sugerirCategoria(sug, pageText(pageById(ids[0]))); $('dgCat').value = dlg._sug.cat; $('dgName').value = sug; $('dgVal').value = '';
   dlg.showModal(); setTimeout(() => { $('dgName').focus(); $('dgName').select(); }, 30);
 }
 function removeDoc(id){ const d = S.docs.find(x => x.id === id); if (!d) return; d.pageIds.forEach(pid => { const p = pageById(pid); if (p) p.grouped = false; }); S.docs = S.docs.filter(x => x !== d); renderGED(); markDirty(); }
@@ -275,7 +303,8 @@ function bindGED(){
     const dlg = $('dlgGroup');
     if (e.submitter && e.submitter.value === 'ok') {
       const name = $('dgName').value.trim() || $('dgCat').value;
-      addDoc({pageIds:[...dlg._ids], category:$('dgCat').value, name, order:$('dgOrd').value, validade:$('dgVal').value});
+      const novo = addDoc({pageIds:[...dlg._ids], category:$('dgCat').value, name, order:$('dgOrd').value, validade:$('dgVal').value});
+      const sg = dlg._sug; if (sg) { const d = novo || S.docs.find(x => x.pageIds[0] === dlg._ids[0]); if (d) d.catSug = {cat:sg.cat, fonte:sg.fonte, porNome:sg.pn, porTexto:sg.pt}; if ($('dgCat').value !== sg.cat) lembrarCategoria(sg.ass, $('dgCat').value); }
       sel.clear(); renderGED(); markDirty();
     }
   });
@@ -319,7 +348,7 @@ function bindGED(){
   docs.addEventListener('change', e => {
     const card = e.target.closest('.dcard'); if (!card) return; const d = S.docs.find(x => x.id === card.dataset.doc); const a = e.target.dataset.act;
     if (a === 'ord') { const n = parseInt(e.target.value, 10); if (!n || n < 1) { e.target.value = d.order; return; } if (S.docs.some(x => x !== d && x.order === n)) S.docs.forEach(x => { if (x !== d && x.order >= n) x.order++; }); d.order = n; S.docs.sort((x, y) => x.order - y.order); renderDocs(); }
-    if (a === 'cat') { d.category = e.target.value; renderDocs(); }
+    if (a === 'cat') { d.category = e.target.value; const p0 = pageById(d.pageIds[0]); if (p0) lembrarCategoria(assinaturaDoc(pageText(p0)), d.category); renderDocs(); }
     if (a === 'val') { d.validade = e.target.value; renderDocs(); }
     if (a === 'name') saveHist(e.target.value);
     markDirty();

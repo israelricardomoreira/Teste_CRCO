@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/incorporacao.js: etapa 4 · quadros da NBR 12721, IV-B, auditoria e minuta */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/incorporacao.js'] = '1.4.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/incorporacao.js'] = '1.5.0';
 /* =====================================================================
    4. INCORPORAÇÃO (NBR 12721)
    ===================================================================== */
@@ -12,7 +12,7 @@ function renderIncCfg(){
     <div class="fld"><label><input type="checkbox" data-bind="i:blOn"${I.blOn ? ' checked' : ''}> Mais de um bloco/torre</label></div>
     ${I.blOn ? `<div class="fld"><label for="iBlN">Quantidade de blocos</label><input id="iBlN" type="number" min="1" data-bind="i:blN" value="${esc(I.blN)}"></div>
     <div class="fld"><label for="iBlT">Nomenclatura</label><select id="iBlT" data-bind="i:blTipo">${['Letras','Números'].map(o => `<option${o === I.blTipo ? ' selected' : ''}>${o}</option>`).join('')}</select></div>` : ''}
-    <div class="fld"><label for="iPrec">Casas decimais do coeficiente (31)</label><select id="iPrec" data-bind="i:precFI">${[4,5,6,7,8].map(o => `<option${String(o) === String(I.precFI) ? ' selected' : ''}>${o}</option>`).join('')}</select></div></div>
+    <div class="fld"><span class="lbl">Casas decimais do coeficiente (31)</span><div>${casasCtl(31, true)}</div><span class="muted" style="font-size:11px">Dá para mudar depois, no cabeçalho de cada coluna dos quadros.</span></div></div>
     <table class="lt"><thead><tr><th>Tipo de pavimento</th><th style="width:110px">Qtd. idênticos</th><th style="width:120px">Unid. por pavimento</th><th style="width:120px">1ª unidade</th><th style="width:40px"></th></tr></thead><tbody>
     ${I.pavs.map(p => `<tr><td><input data-bind="pav:${p.id}:nome" value="${esc(p.nome)}" aria-label="Nome do pavimento"></td><td><input type="number" min="1" data-bind="pav:${p.id}:qtd" value="${esc(p.qtd)}" aria-label="Quantidade de pavimentos idênticos"></td><td><input type="number" min="0" data-bind="pav:${p.id}:und" value="${esc(p.und)}" aria-label="Unidades por pavimento"></td><td><input data-bind="pav:${p.id}:inicio" value="${esc(p.inicio)}" aria-label="Numeração da primeira unidade"></td><td><button class="btn sm danger" type="button" data-rmpav="${p.id}" aria-label="Remover pavimento">✕</button></td></tr>`).join('')}
     </tbody></table>
@@ -39,24 +39,37 @@ const Q1COLS = [['nome','Pavimento\n(1)','t'],['qtd','Qtd.\nidênt.','e'],['v2',
 const Q2COLS = [['nome','Unidade\n(19)','t'],['pcd','PCD','b'],['v20','CP\n(20)','e'],['v21','Real dif./desc.\n(21)','e'],['v22','Equiv.\n(22)','e'],['c23','Real\n(23)','c'],['c24','Equiv.\n(24)','c'],['v25','CP\n(25)','e'],['v26','Real dif./desc.\n(26)','e'],['v27','Equiv.\n(27)','e'],['c28','Real\n(28)','c'],['c29','Equiv.\n(29)','c'],['c30','Equiv. total\n(30)','k'],['c31','Calculado\n(31)','k'],['fiRT','Do RT\n(31)','e'],['c32','CP\n(32)','c'],['c33','Real\n(33)','c'],['c34','Equiv.\n(34)','c'],['c35','Real\n(35)','c'],['c36','Equiv.\n(36)','c'],['c37','Real\n(37)','k'],['c38','Equiv.\n(38)','k'],['acess','Acessória\n(IV-B C)','e'],['comp','Composição da unidade','w']];
 /* casas decimais por coluna (como o RT escreveu); a 31 segue a precisão do coeficiente */
 function colNum(k){ if (k === 'fiRT') return 31; const m = String(k).match(/^[vc](\d+)$/); return m ? +m[1] : null; }
-function casa(n){ if (n === 31) return Math.max(4, Math.min(8, parseInt(S.inc.precFI, 10) || 6)); const c = (S.inc.casas || {})[n]; return c == null ? 2 : +c; }
+function casa(n){ if (n === 31) return Math.max(2, Math.min(10, parseInt(S.inc.precFI, 10) || 6)); const c = (S.inc.casas || {})[n]; return c == null ? 2 : +c; }
 function fmtCol(n, v){ return fmt(v, casa(n)); }
-function gridHTML(cols, rows, prefix, groups){
-  const selCasa = (k, t) => { const n = colNum(k); if (n == null || n === 31 || !'eck'.includes(t)) return ''; const c = casa(n);
-    return `<select class="casa" data-casa="${n}" title="Casas decimais da coluna ${n}" aria-label="Casas decimais da coluna ${n}">${[0,1,2,3,4,5,6].map(o => `<option${o === c ? ' selected' : ''}>${o}</option>`).join('')}</select>`; };
-  let h = `<thead><tr>${groups.map(([t, n]) => `<th colspan="${n}">${t}</th>`).join('')}</tr><tr>${cols.map(c => `<th>${esc(c[1])}${selCasa(c[0], c[2]) ? '<br>' + selCasa(c[0], c[2]) : ''}</th>`).join('')}</tr></thead><tbody>`;
+/* − casas + : pequeno controle de casas decimais (no cabeçalho de cada coluna e na configuração) */
+function casasCtl(n, grande){ const c = casa(n);
+  return `<span class="casas${grande ? ' g' : ''}" title="Casas decimais da coluna ${n}"><button type="button" data-casa="${n}" data-d="-1" aria-label="Menos uma casa decimal na coluna ${n}">−</button><b>${c}</b><button type="button" data-casa="${n}" data-d="1" aria-label="Mais uma casa decimal na coluna ${n}">+</button></span>`; }
+function mudarCasas(n, d){
+  const I = S.inc;
+  if (n === 31) I.precFI = String(Math.max(2, Math.min(10, casa(31) + d)));
+  else I.casas = Object.assign({}, I.casas || {}, {[n]:Math.max(0, Math.min(6, casa(n) + d))});
+  markDirty(); renderIncCfg(); renderQ1(); renderQ2(); recalcInc();
+}
+function gridHTML(colsTodas, rows, prefix, groupsIn){
+  /* a composição (texto longo) vai numa linha própria abaixo da unidade, na largura toda: não corta e não alarga a tabela */
+  const cols = colsTodas.filter(c => c[2] !== 'w'), largas = colsTodas.filter(c => c[2] === 'w');
+  const groups = groupsIn.map(g => g.slice()); if (largas.length) { const u = groups[groups.length - 1]; u[1] = Math.max(1, u[1] - largas.length); }
+  const selCasa = (k, t) => { const n = colNum(k); if (n == null || !'eck'.includes(t)) return '';
+    if (vistos.has(n)) return ''; vistos.add(n); return casasCtl(n); }, vistos = new Set();
+  let h = `<thead><tr>${groups.map(([t, n]) => `<th colspan="${n}">${t}</th>`).join('')}</tr><tr>${cols.map(c => { const sc = selCasa(c[0], c[2]); return `<th>${esc(c[1])}${sc ? '<br>' + sc : ''}</th>`; }).join('')}</tr></thead><tbody>`;
   rows.forEach((r, ri) => {
     let ei = 0;
-    h += '<tr>' + cols.map(([k, , t]) => {
+    let extra = '';
+    h += '<tr>' + colsTodas.map(([k, , t]) => {
       if (t === 'c' || t === 'k') return `<td class="c${t === 'k' ? ' k' : ''}" id="${prefix}c_${ri}_${k}">0</td>`;
       if (t === 'b') return `<td style="text-align:center"><input type="checkbox" data-bind="${prefix}:${r.id}:${k}"${r[k] ? ' checked' : ''} aria-label="Unidade PCD"></td>`;
-      const rot = esc(cols.find(c => c[0] === k)[1].replace('\n', ' ')) + ' — linha ' + (ri + 1);
-      if (t === 'w') return `<td><textarea class="comp" rows="2" data-bind="${prefix}:${r.id}:${k}" data-r="${ri}" data-c="${ei++}" id="${prefix}i_${ri}_${k}" aria-label="${rot}">${esc(r[k])}</textarea></td>`;
+      const rot = esc(colsTodas.find(c => c[0] === k)[1].replace('\n', ' ')) + ' — linha ' + (ri + 1);
+      if (t === 'w') { extra += `<tr class="comprow"><td colspan="${cols.length}" class="compcel${r.compPend ? ' pend' : ''}"><div class="compbox"><span class="complbl">Composição <b>${esc(r.bloco ? 'Bl. ' + r.bloco + ' · ' : '')}${esc(r.nome || '')}</b></span><textarea class="comp" rows="2" data-bind="${prefix}:${r.id}:${k}" data-r="${ri}" data-c="${ei++}" id="${prefix}i_${ri}_${k}" aria-label="${rot}">${esc(r[k])}</textarea>${r.compPend ? `<span class="compact"><button type="button" class="btn sm ok" data-compok="${r.id}" title="Conferi: o texto está igual ao memorial">✓ Conferido</button>${r.compPg ? `<button type="button" class="btn sm" data-compver="${r.compPg}" title="Abrir a página do memorial">📄</button>` : ''}</span>` : ''}</div></td></tr>`; return ''; }
       const cls = t === 't' ? ' class="t"' : '';
       const pre = (k === 'nome' && r.bloco) ? `<span class="blk">Bl. ${esc(r.bloco)}</span>` : '';
       const n = colNum(k);
       return `<td style="white-space:nowrap">${pre}<input${cls} data-bind="${prefix}:${r.id}:${k}" data-r="${ri}" data-c="${ei++}"${n ? ` data-col="${n}"` : ''} id="${prefix}i_${ri}_${k}" value="${esc(r[k])}" inputmode="${t === 'e' ? 'decimal' : 'text'}" aria-label="${rot}"></td>`;
-    }).join('') + '</tr>';
+    }).join('') + '</tr>' + extra;
   });
   h += `</tbody><tfoot><tr>${cols.map(([k, , t], i) => i === 0 ? '<td style="text-align:left">TOTAIS</td>' : (t === 'b' || t === 't' || t === 'w') ? '<td></td>' : `<td id="${prefix}t_${k}">0</td>`).join('')}</tr></tfoot>`;
   return h;
@@ -88,16 +101,22 @@ function renderQ3(){
 }
 function calcInc(){ return Motor.calcInc(S.inc); }
 function setTxt(id, t){ const e = $(id); if (e) e.textContent = t; }
-function marcar(el, ok){ if (!el) return; el.classList.toggle('mat', ok === true); el.classList.toggle('mis', ok === false); }
+function marcar(el, ok){ if (!el) return; el.classList.toggle('mat', ok === true); el.classList.toggle('mis', ok === false); el.classList.toggle('arr', ok === 'arred'); if (ok !== 'arred' && el.dataset.arr) { el.title = ''; delete el.dataset.arr; } }
+/* compara o valor do RT com o calculado: verde = igual; amarelo = arredondamento (mostra o correto); vermelho = diverge */
+function marcarRT(el, lido, calc){
+  if (!el) return; const k = Motor.compararRT(lido, calc); if (!k) { marcar(el, null); return; }
+  marcar(el, k.c === 'ok' ? true : k.c === 'arred' ? 'arred' : false);
+  if (k.c !== 'ok') { el.title = `RT: ${lido} · correto: ${k.correto}${k.c === 'arred' ? ' (diferença de arredondamento: avalie se aceita; a minuta repete o quadro)' : ''}`; el.dataset.arr = '1'; }
+}
 function recalcInc(){
-  const R = calcInc(), p = R.p, tol = .015;
+  const R = calcInc(), p = R.p;
   R.q1.forEach((x, ri) => { [5,6,10,11,15,16,17,18].forEach(n => { setTxt(`q1c_${ri}_c${n}`, fmtCol(n, x.c[n]));
-    const l = x.r.lido && x.r.lido[n]; marcar($(`q1c_${ri}_c${n}`), l == null ? null : Math.abs(parseBR(l) - x.c[n]) <= tol); }); });
+    const l = x.r.lido && x.r.lido[n]; if (l == null) marcar($(`q1c_${ri}_c${n}`), null); else marcarRT($(`q1c_${ri}_c${n}`), l, x.c[n]); }); });
   R.q2.forEach((x, ri) => {
     [23,24,28,29,30,32,33,34,35,36,37,38].forEach(n => { setTxt(`q2c_${ri}_c${n}`, fmtCol(n, x.c[n]));
-      const l = x.r.lido && x.r.lido[n]; marcar($(`q2c_${ri}_c${n}`), l == null ? null : Math.abs(parseBR(l) - x.c[n]) <= tol); });
+      const l = x.r.lido && x.r.lido[n]; if (l == null) marcar($(`q2c_${ri}_c${n}`), null); else marcarRT($(`q2c_${ri}_c${n}`), l, x.c[n]); });
     setTxt(`q2c_${ri}_c31`, fmt(x.fi, p));
-    const rt = $(`q2i_${ri}_fiRT`); if (rt) { const has = String(x.r.fiRT || '').trim() !== ''; marcar(rt, !has ? null : Math.abs(parseBR(x.r.fiRT) - x.fi) <= 0.6 * 10 ** -p); }
+    const rt = $(`q2i_${ri}_fiRT`); if (rt) { const has = String(x.r.fiRT || '').trim() !== ''; if (!has) marcar(rt, null); else marcarRT(rt, x.r.fiRT, x.c[30] / (R.T2[30] || 1)); }
   });
   for (let i = 2; i <= 18; i++) setTxt('q1t_' + ([2,3,4,7,8,9,12,13,14].includes(i) ? 'v' : 'c') + i, fmtCol(i, R.T1[i]));
   setTxt('q1t_qtd', String(R.q1.reduce((s, x) => s + x.qtd, 0)));
@@ -153,18 +172,21 @@ function gerarMinuta(){
   const unid = (I.denom || 'UNIDADE').toUpperCase(), unidPl = /S$/.test(unid) ? unid : unid + 'S';
   const nome = esc((C.empNome || '').toUpperCase()) || '<span class="ph">[preencher: nome do empreendimento]</span>';
   const vaga = (I.vagaTxt || '').trim();
-  const compOf = (x, pl) => { let t = (x.r.comp || '').trim().replace(/\.$/, ''); t = t ? esc(t.toUpperCase()) : '<span class="ph">[COMPOSIÇÃO NÃO INFORMADA]</span>'; if (vaga) t += ' ' + esc(vaga.toUpperCase()); if (x.r.pcd) t += pl ? ' (UNIDADES ADAPTADAS PARA PESSOA COM DEFICIÊNCIA - PCD)' : ' (UNIDADE ADAPTADA PARA PESSOA COM DEFICIÊNCIA - PCD)'; return t; };
+  const compOf = (x, pl) => { let t = (x.r.comp || '').trim().replace(/[.;,]+$/, ''); t = t ? esc(t.toUpperCase()) : '<span class="ph">[COMPOSIÇÃO NÃO INFORMADA]</span>'; if (vaga) t += ' ' + esc(vaga.toUpperCase()); if (x.r.pcd) t += pl ? ' (UNIDADES ADAPTADAS PARA PESSOA COM DEFICIÊNCIA - PCD)' : ' (UNIDADE ADAPTADA PARA PESSOA COM DEFICIÊNCIA - PCD)'; return t; };
   const pavName = x => esc(((R.q1.find(q => q.r.pav === x.r.pav) || {r:{}}).r.nome || (I.pavs[x.r.pav] || {}).nome || '').toUpperCase());
   const uLbl = x => x.r.bloco ? `${esc(x.r.nome)} do BLOCO ${esc(x.r.bloco)}` : esc(x.r.nome);
-  const areas = x => `área coberta padrão de <b>${fmt(x.c[20])} m²</b>, área descoberta de <b>${fmt(x.c[21])} m²</b>, área privativa real de <b>${fmt(x.c[23])} m²</b>, área de uso comum de divisão não proporcional de <b>${fmt(x.c[28])} m²</b>, área de uso comum de divisão proporcional de <b>${fmt(x.c[35])} m²</b>, área real total de <b>${fmt(x.c[37])} m²</b>`;
-  $('minFil').innerHTML = R.q2.map(x => `<p><b>IMÓVEL:</b> Uma fração ideal de <b>${fmt(fiOf(x), p)}</b> da área do imóvel situado na <b>${ph('descricao')}</b>, <b>CEP ${ph('cep')}</b>, com a área total de <b>${ph('areaTerreno')} m²</b>, que corresponderá ao <b>${unid} Nº ${uLbl(x)}</b>, localizado no <b>${pavName(x)}</b> do <b>"${nome}"</b>, e deverá ser composto de ${compOf(x, false)}, com ${areas(x)}. <b>PROPRIETÁRIA:</b> <b>${ph('incNome')}</b>, com sede em ${ph('incSede')}, inscrita no CNPJ sob o nº <b>${ph('incCnpj')}</b>. <b>REGISTRO ANTERIOR:</b> <b>${ph('regAnterior')}</b> da matrícula nº <b>${ph('matricula')}</b>, Livro 2 - Registro Geral deste Cartório de Registro de Imóveis.</p>`).join('<hr>');
+  /* a minuta repete o quadro: usa o valor escrito pelo RT quando houver (mesmo com arredondamento diferente) */
+  const qv = (x, c) => { if (String(x.r['v' + c] ?? '').trim()) return esc(String(x.r['v' + c]).trim()); const l = x.r.lido && x.r.lido[c]; return esc(l != null && String(l).trim() ? String(l).trim() : fmtCol(c, x.c[c])); };
+  const fiTxt = x => String(x.r.fiRT || '').trim() ? esc(String(x.r.fiRT).trim()) : fmt(fiOf(x), p);
+  const areas = x => `área coberta padrão de <b>${qv(x, 20)} m²</b>, área descoberta de <b>${qv(x, 21)} m²</b>, área privativa real de <b>${qv(x, 23)} m²</b>, área de uso comum de divisão não proporcional de <b>${qv(x, 28)} m²</b>, área de uso comum de divisão proporcional de <b>${qv(x, 35)} m²</b>, área real total de <b>${qv(x, 37)} m²</b>`;
+  $('minFil').innerHTML = R.q2.map(x => `<p><b>IMÓVEL:</b> Uma fração ideal de <b>${fiTxt(x)}</b> da área do imóvel situado na <b>${ph('descricao')}</b>, <b>CEP ${ph('cep')}</b>, com a área total de <b>${ph('areaTerreno')} m²</b>, que corresponderá ao <b>${unid} Nº ${uLbl(x)}</b>, localizado no <b>${pavName(x)}</b> do <b>"${nome}"</b>, e deverá ser composto de ${compOf(x, false)}, com ${areas(x)}. <b>PROPRIETÁRIA:</b> <b>${ph('incNome')}</b>, com sede em ${ph('incSede')}, inscrita no CNPJ sob o nº <b>${ph('incCnpj')}</b>. <b>REGISTRO ANTERIOR:</b> <b>${ph('regAnterior')}</b> da matrícula nº <b>${ph('matricula')}</b>, Livro 2 - Registro Geral deste Cartório de Registro de Imóveis.</p>`).join('<hr>');
   const nU = R.q2.length, nb = I.blOn ? Math.max(1, parseInt(I.blN, 10) || 1) : 1;
   const real = R.T1[17], custo = parseBR(I.q3.v13rt) > 0 ? parseBR(I.q3.v13rt) : R.Q3.v13;
   const lbl = r => r.bloco ? `${esc(r.nome)} do Bloco ${esc(r.bloco)}` : esc(r.nome);
-  const comp = {}; R.q2.forEach(x => { const k = (x.r.comp || '').trim().toUpperCase() + '|' + (x.r.pcd ? 1 : 0); (comp[k] = comp[k] || []).push(x); });
+  const comp = {}; R.q2.forEach(x => { const k = Motor.chaveComposicao(x.r.comp) + '|' + (x.r.pcd ? 1 : 0); (comp[k] = comp[k] || []).push(x); });
   const compTxt = Object.values(comp).map(g => g.length === 1 ? `<br>- <b>${unid} ${lbl(g[0].r)}</b> será composto de ${compOf(g[0], false)}` : `<br>- <b>${unidPl} ${joinE(g.map(x => lbl(x.r)))}</b> serão compostos de ${compOf(g[0], true)}`).join(';');
-  const ar = {}; R.q2.forEach(x => { const k = [20,21,23,28,35,37].map(i => fmt(x.c[i])).join('|') + '|' + fmt(fiOf(x), p); (ar[k] = ar[k] || []).push(x); });
-  const arTxt = Object.values(ar).map(g => `<br>- <b>${g.length === 1 ? unid + ' ' + lbl(g[0].r) : unidPl + ' ' + joinE(g.map(x => lbl(x.r)))}</b>, com ${areas(g[0])} e fração ideal de <b>${fmt(fiOf(g[0]), p)}</b>`).join(';');
+  const ar = {}; R.q2.forEach(x => { const k = [20,21,23,28,35,37].map(i => qv(x, i)).join('|') + '|' + fiTxt(x); (ar[k] = ar[k] || []).push(x); });
+  const arTxt = Object.values(ar).map(g => `<br>- <b>${g.length === 1 ? unid + ' ' + lbl(g[0].r) : unidPl + ' ' + joinE(g.map(x => lbl(x.r)))}</b>, com ${areas(g[0])} e fração ideal de <b>${fiTxt(g[0])}</b>`).join(';');
   const pavs = joinE(R.q1.map(x => `<b>${esc(String(x.r.nome).toUpperCase())}</b>`));
   const alv = parseBR(C.alvaraArea);
   const alvTxt = alv > 0 && Math.abs(alv - real) < 0.05 ? 'é idêntica' : `é de <b>${alv > 0 ? fmt(alv) : '<span class="ph">[preencher: área do alvará]</span>'} m²</b>`;
@@ -203,13 +225,15 @@ function bindIncorporacao(){
   }));
   ['tQ1','tQ2'].forEach(id => {
     $(id).addEventListener('change', e => {
-      const sc = e.target.closest('[data-casa]'); if (sc) { S.inc.casas = Object.assign({}, S.inc.casas || {}, {[sc.dataset.casa]:+sc.value}); markDirty(); renderQ1(); renderQ2(); recalcInc(); return; }
       const inp = e.target; if (!inp.dataset || !inp.dataset.col || inp.dataset.col === '31') return;
       const v = String(inp.value).trim(), m = v.match(/^(-?[\d.]+)(?:,(\d*))?$/); if (!m) return;
       const c = casa(+inp.dataset.col), dec = (m[2] || ''); if (dec.length >= c) return;   /* só completa com zeros, nunca arredonda */
       inp.value = m[1] + (c ? ',' + dec.padEnd(c, '0') : ''); setBind(inp.dataset.bind, inp.value);
     });
   });
+  $('step-inc').addEventListener('click', e => {
+    const ok = e.target.closest('[data-compok]'); if (ok) { const r = S.inc.q2.find(x => x.id === ok.dataset.compok); if (r) { r.compPend = false; markDirty(); renderQ2(); recalcInc(); } return; }
+    const vr = e.target.closest('[data-compver]'); if (vr) { gotoPage(vr.dataset.compver); return; } const b = e.target.closest('[data-casa][data-d]'); if (b) { e.preventDefault(); mudarCasas(+b.dataset.casa, +b.dataset.d); } });
   $('bFilter').onchange = () => { $('bCrit').disabled = $('bFilter').value === 'ALL'; };
   $('bCrit').disabled = true;
   $('bApply').onclick = applyBatch;

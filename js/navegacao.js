@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/navegacao.js: etapas (abas) e troca de etapa */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/navegacao.js'] = '1.4.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/navegacao.js'] = '1.5.0';
 const STEPS = [
   {k:'ged', t:'Documentos', hint:'Organize as páginas em documentos do GED.'},
   {k:'conf', t:'Conferência', hint:'Confira os dados lado a lado com o documento de origem.'},

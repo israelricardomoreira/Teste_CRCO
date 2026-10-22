@@ -2,7 +2,7 @@
  * + conferências do domínio registral (NBR 12.721, Lei 4.591/64, palavras repetidas, letras triplicadas…).
  * Confere cada palavra "de trás para frente" pelas regras de sufixo/prefixo do dicionário, sem gerar todas as formas. */
 'use strict';
-(typeof window !== 'undefined') && ((window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ortografia.js'] = '1.4.0');
+(typeof window !== 'undefined') && ((window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ortografia.js'] = '1.5.0');
 
 var Ortografia = (function(){
   let D = null;

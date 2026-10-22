@@ -1,7 +1,7 @@
 /* Qualificador CRCO — js/conferencia.js: etapa 2 · conferência. Documento grande com ferramentas (js/leitor.js),
  * ficha ao lado (ou embaixo, em tela em pé) e opção de abrir o documento numa janela separada. */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/conferencia.js'] = '1.4.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/conferencia.js'] = '1.5.0';
 
 const CV = {docId:'', i:0};                 /* página aberta na Conferência (compartilhada com a janela separada) */
 const CMP = {docId:'', i:0};                /* página do "Comparar" */
@@ -37,8 +37,32 @@ window.HOST = {janela:window, CV, VERSAO:() => VERSAO,
   ocrPages:l => ocrPages(l), insertActive:(...a) => insertActive(...a), notaParaExigencia:(p, a) => notaParaExigencia(p, a),
   alternarComparar:x => alternarComparar(x), abrirJanelaDoc:() => abrirJanelaDoc(), confMudou:o => confMudou(o),
   visorConectado:(w, L) => visorConectado(w, L), visorFechado:() => visorFechado(),
-  renderPDF:(p, w) => renderPDFAlta(p, w), pontosConferir:p => pontosConferir(p), registrarExtra:(w, L) => { JAN.extras.push({w, L}); }};
+  renderPDF:(p, w) => renderPDFAlta(p, w), matTexto:() => ({html:matTextoHTML(), titulo:S.mat && S.mat.fonte || 'Matrícula'}), colouMatricula:(txt) => registrarColagem(null, txt, 'janela-matricula'), pontosConferir:p => pontosConferir(p), registrarExtra:(w, L) => { JAN.extras.push({w, L}); }};
+const MOVPAG = {k:'', d:''};
+/* ---------- certidão aberta no leitor: emissão e validade ali mesmo, sem procurar na ficha ---------- */
+function aplicarDias(id, n){
+  const c = S.certidoes.find(x => x.id === id); if (!c || !(n > 0)) return;
+  const base = c.emissao || todayISO(); if (!c.emissao) toast('Sem data de emissão: contei a partir de hoje. Lance a emissão para corrigir.', 'err');
+  c.validade = Motor.somarDias(base, n); const d = c.docId && S.docs.find(x => x.id === c.docId); if (d) d.validade = c.validade;
+  markDirty(); renderCertBar(); if (curStep === 'conf') renderConfForm(); refreshCertStatus(); toast(`Validade: ${fmtDate(c.validade)} (${n} dias a partir de ${fmtDate(base)}).`);
+}
+function renderCertBar(){
+  const box = $('certBar'); if (!box) return;
+  const d = S.docs.find(x => x.id === CV.docId), c = d && d.category === 'CERTIDAO' ? S.certidoes.find(x => x.docId === d.id) : null;
+  if (!c) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  box.innerHTML = `<b title="${esc(d.name)}">📄 ${String(d.order).padStart(2, '0')} · Certidão</b>
+    <select data-bind="ct:${c.id}:tipo" aria-label="Tipo da certidão">${Object.entries(CERT).map(([k, v]) => `<option value="${k}"${k === c.tipo ? ' selected' : ''}>${v[0]}</option>`).join('')}</select>
+    <select data-bind="ct:${c.id}:res" aria-label="Resultado">${['Negativa','Positiva','Positiva com efeito de negativa'].map(o => `<option${o === c.res ? ' selected' : ''}>${o}</option>`).join('')}</select>
+    <label>Emissão <input type="date" data-bind="ct:${c.id}:emissao" value="${esc(c.emissao)}"></label>
+    <label>Válida até <input type="date" data-bind="ct:${c.id}:validade" value="${esc(c.validade)}"></label>
+    <label>ou <input class="dias" type="number" min="1" max="999" data-diasct="${c.id}" placeholder="dias" aria-label="Validade em dias"> dias</label>
+    <span data-certst="${c.id}" class="cb-st"></span>`;
+  refreshCertStatus();
+}
 function confMudou(origem){
+  renderCertBar();
+  if (origem === 'principal') { const p = confPages()[CV.i], d = S.docs.find(x => x.id === CV.docId); if (p) { if (CV.docId !== MOVPAG.d) { MOVPAG.d = CV.docId; aprendMov('D', d ? String(d.order) : 'soltas'); } const k = (d ? d.order : 0) + '.' + (CV.i + 1); if (k !== MOVPAG.k) { MOVPAG.k = k; aprendMov('P', k); } } }
   if (origem !== 'principal' && LP) LP.atualizar();
   if (origem !== 'visor' && JAN.L) JAN.L.atualizar();
   JAN.extras = JAN.extras.filter(x => x.w && !x.w.closed); JAN.extras.forEach(x => { try { x.L.atualizar(); } catch (e) {} });
@@ -160,7 +184,14 @@ function renderResumo(){
   grupo('Partes'); if (!S.partes.length) it('Partes', ''); S.partes.forEach(p => it(p.papel, `${p.nome || '—'} · ${p.doc || 's/ doc'}`, 'p:' + p.id + ':nome', ' ' + docStatus(p.doc)));
   grupo('Certidões'); if (!S.certidoes.length) it('Certidões', ''); S.certidoes.forEach(c => it((CERT[c.tipo] || ['Outra'])[0], `${c.res} · emitida ${fmtDate(c.emissao) || '—'} · válida até ${fmtDate(c.validade) || '—'}`, null, ' ' + certStatus(c)));
   if (isInc && S.inc.q2.length) { const R = calcInc(); grupo('Quadros NBR'); it('Unidades', `${R.q2.length} unidade(s) em ${R.q1.length} tipo(s) de pavimento`); it('Área real global', fmt(R.T1[17]) + ' m²'); it('Área equivalente global', fmt(R.T1[18]) + ' m²'); it('Custo global (13)', 'R$ ' + fmt(parseBR(S.inc.q3.v13rt) || R.Q3.v13)); it('CUB', `${S.inc.q3.cub || '—'} (${S.inc.q3.cubMes || '—'})`);
-    R.q2.forEach(x => it('Composição ' + unitShort(x.r), x.r.comp || '')); }
+    /* unidades com a mesma composição numa linha só, com a fração ideal (col. 31) de cada uma na frente */
+    const den = (S.inc.denom || 'Apartamento').toLowerCase().replace(/^./, c => c.toUpperCase()), denPl = /s$/i.test(den) ? den : den + 's';
+    const fiT = x => String(x.r.fiRT || '').trim() || fmt(x.fi, R.p), grupos = new Map();
+    R.q2.forEach(x => { const k = Motor.chaveComposicao(x.r.comp) + '|' + (x.r.pcd ? 1 : 0); if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(x); });
+    grupos.forEach(g => { const comp = String(g[0].r.comp || '').trim(), pend = g.some(x => x.r.compPend);
+      lin.push(`<tr class="rs-comp" data-irinc="1"><th>${esc(g.length > 1 ? denPl + ' ' + joinE(g.map(x => unitShort(x.r))) : den + ' ' + unitShort(g[0].r))}</th><td><span class="fis">${g.map(x => `<span class="fi" title="Fração ideal (coluna 31) da unidade ${esc(unitShort(x.r))}"><b>${esc(unitShort(x.r))}</b> ${esc(fiT(x))}</span>`).join('')}</span>${comp ? `${g.length > 1 ? 'compostos' : 'composto'} de ${esc(comp.replace(/[.;]+$/, ''))}` : '<span class="ph">composição não informada</span>'}${pend ? ' <span class="pendtag" title="Veio do memorial: confira no Quadro II">a conferir</span>' : ''}</td><td>${pend ? '<span class="muted">·</span>' : comp ? '<span class="okt">✓</span>' : ''}</td></tr>`); });
+  }
+  /* a linha da composição leva ao Quadro II */
   $('confResumo').innerHTML = `<table class="resumo">${lin.join('')}</table><p class="muted" style="font-size:12px;margin-top:8px">Clique numa linha para ir ao campo na ficha.</p>`;
 }
 function vistaConf(resumo){ CONFVISTA.resumo = resumo; $('confForm').hidden = resumo; $('confResumo').hidden = !resumo; $('vFicha').setAttribute('aria-pressed', String(!resumo)); $('vResumo').setAttribute('aria-pressed', String(resumo)); if (resumo) renderResumo(); }
@@ -168,7 +199,7 @@ function renderConf(){
   const ops = docOpcoes();
   if (!ops.some(o => o.id === CV.docId)) { CV.docId = ops[0] ? ops[0].id : ''; CV.i = 0; }
   if (!LP) LP = Leitor.criar($('cvA'), HOST, {st:CV, janela:'principal', aoMudar:() => confMudou('principal')});
-  confLayout(); LP.atualizar(); if (LC) LC.atualizar(); if (JAN.L) JAN.L.atualizar();
+  confLayout(); LP.atualizar(); renderCertBar(); if (LC) LC.atualizar(); if (JAN.L) JAN.L.atualizar();
   renderConfForm();
 }
 function renderConfView(){ if (LP) LP.atualizar(); if (LC) LC.atualizar(); if (JAN.L) JAN.L.atualizar(); }
@@ -209,7 +240,7 @@ function renderConfForm(){
       <td>${d ? `<button type="button" class="srcb" data-godoc="${d.id}" title="Abrir a certidão">📄 ${String(d.order).padStart(2, '0')} ${esc(d.name)}</button><br>` : ''}<select data-bind="ct:${c.id}:tipo" aria-label="Tipo">${Object.entries(CERT).map(([k, v]) => `<option value="${k}"${k === c.tipo ? ' selected' : ''}>${v[0]}</option>`).join('')}</select>${c.tipo === 'OUTRA' ? `<input data-bind="ct:${c.id}:obs" value="${esc(c.obs)}" placeholder="Descreva a certidão" style="margin-top:4px">` : ''}</td>
       <td><select data-bind="ct:${c.id}:res" aria-label="Resultado">${['Negativa','Positiva','Positiva com efeito de negativa'].map(o => `<option${o === c.res ? ' selected' : ''}>${o}</option>`).join('')}</select></td>
       <td><input type="date" data-bind="ct:${c.id}:emissao" value="${esc(c.emissao)}" aria-label="Emissão"></td>
-      <td><input type="date" data-bind="ct:${c.id}:validade" value="${esc(c.validade)}" aria-label="Válida até"></td>
+      <td><input type="date" data-bind="ct:${c.id}:validade" value="${esc(c.validade)}" aria-label="Válida até"><input class="dias" type="number" min="1" max="999" data-diasct="${c.id}" placeholder="ou nº de dias" title="Certidão que diz &quot;validade de X dias&quot;: digite os dias e a data é calculada a partir da emissão" aria-label="Validade em dias"></td>
       <td data-certst="${c.id}" style="font-size:12px"></td>
       <td>${d ? '<span class="muted" title="Vem do GED: para tirar, desfaça o documento lá">GED</span>' : `<button class="btn sm danger" type="button" data-rmcert="${c.id}" aria-label="Remover certidão">✕</button>`}</td></tr>`; }).join('')}</tbody></table>` : '<p class="muted" style="font-size:13px">Nenhuma certidão. As que você classificar como Certidão no GED entram aqui sozinhas.</p>';
   $('confForm').innerHTML = h;
@@ -244,6 +275,7 @@ function insertActive(raw, p, como = 'selecao', reg = null){
   return true;
 }
 function gotoPage(chaveOuPagina){
+  aprendMov('O', String(chaveOuPagina).split(':')[0]);
   const s = S.src[chaveOuPagina], pageId = s ? s.pageId : chaveOuPagina, reg = s ? s.reg : null;
   const p = pageById(pageId); if (!p) { toast('A página de origem não está carregada (importe o documento de novo).', 'err'); return; }
   const d = S.docs.find(x => x.pageIds.includes(pageId));
@@ -263,7 +295,11 @@ function bindConferencia(){
   $('confForm').addEventListener('change', e => { if (e.target.dataset.bind && /^ct:.*:tipo$/.test(e.target.dataset.bind)) renderConfForm(); });
   $('cvVoltar').onclick = trazerDocDeVolta;
   $('vFicha').onclick = () => vistaConf(false); $('vResumo').onclick = () => vistaConf(true);
-  $('confResumo').addEventListener('click', e => { const tr = e.target.closest('[data-ir]'); if (!tr) return; vistaConf(false); const el = document.querySelector(`#confForm [data-bind="${cssEsc(tr.dataset.ir)}"]`); if (el) { el.scrollIntoView({block:'center'}); el.focus(); } });
+  $('certBar').addEventListener('change', e => { const di = e.target.closest('[data-diasct]'); if (di) { aplicarDias(di.dataset.diasct, +di.value); return; }
+    const b = e.target.dataset.bind; if (b && /^ct:/.test(b)) { const c = S.certidoes.find(x => x.id === b.split(':')[1]); const d = c && c.docId && S.docs.find(x => x.id === c.docId); if (d && /:validade$/.test(b)) d.validade = c.validade; markDirty(); if (curStep === 'conf' && !CONFVISTA.resumo) renderConfForm(); } });
+  $('certBar').addEventListener('keydown', e => { const di = e.target.closest('[data-diasct]'); if (di && e.key === 'Enter') { e.preventDefault(); di.blur(); } });
+  $('confForm').addEventListener('change', e => { const di = e.target.closest('[data-diasct]'); if (di) aplicarDias(di.dataset.diasct, +di.value); else if (/^ct:/.test(e.target.dataset.bind || '')) renderCertBar(); });
+  $('confResumo').addEventListener('click', e => { if (e.target.closest('[data-irinc]')) { goStep('inc'); setTimeout(() => $('q2Card').scrollIntoView({block:'start'}), 50); return; } const tr = e.target.closest('[data-ir]'); if (!tr) return; vistaConf(false); const el = document.querySelector(`#confForm [data-bind="${cssEsc(tr.dataset.ir)}"]`); if (el) { el.scrollIntoView({block:'center'}); el.focus(); } });
   $('confForm').addEventListener('change', e => { const b = e.target.dataset && e.target.dataset.bind; if (!b || !/^ct:.*:validade$/.test(b)) return; const c = S.certidoes.find(x => x.id === b.split(':')[1]); const d = c && c.docId && S.docs.find(x => x.id === c.docId); if (d) { d.validade = c.validade; markDirty(); } });
   $('confForm').addEventListener('click', e => { const g = e.target.closest('[data-godoc]'); if (!g) return; CV.docId = g.dataset.godoc; CV.i = 0; if (JAN.win && !JAN.win.closed && JAN.L) { JAN.L.atualizar(); JAN.win.focus(); } else if (LP) LP.atualizar(); });
   /* divisória arrastável (horizontal na tela deitada, vertical na tela em pé) */

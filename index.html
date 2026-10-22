@@ -7,15 +7,15 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231d4f91'/%3E%3Ctext x='16' y='21' font-family='Arial' font-size='13' font-weight='700' fill='white' text-anchor='middle'%3EQR%3C/text%3E%3C/svg%3E">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<link rel="stylesheet" href="css/estilo.css?v=1.4.0">
-<link rel="stylesheet" href="css/leitor.css?v=1.4.0">
+<link rel="stylesheet" href="css/estilo.css?v=1.5.0">
+<link rel="stylesheet" href="css/leitor.css?v=1.5.0">
 </head>
 <body>
 <a class="skip" href="#main">Pular para o conteúdo</a>
 
 <header class="app-hdr">
   <div class="brand"><span class="logo" aria-hidden="true">QR</span>
-    <div><div class="brand-t">Qualificador CRCO</div><div class="brand-s">Registro de Imóveis · Cidade Ocidental/GO · v1.4.0</div></div></div>
+    <div><div class="brand-t">Qualificador CRCO</div><div class="brand-s">Registro de Imóveis · Cidade Ocidental/GO · v1.5.0</div></div></div>
   <div class="meta">
     <label for="mProt">Protocolo<input id="mProt" data-bind="m:protocolo" autocomplete="off"></label>
     <label for="mTipo">Tipo de ato<select id="mTipo" data-bind="m:tipoAto"></select></label>
@@ -60,8 +60,8 @@
     <div class="cv-gutter" id="cvGutter" role="separator" aria-orientation="vertical" aria-label="Arraste para mudar o tamanho do documento e da ficha (duplo clique volta ao padrão)" title="Arraste para ajustar · duplo clique volta ao padrão"></div>
     <div class="panel cv-ficha">
       <div class="cv-janela" id="cvJanela" hidden>⧉ O documento está aberto em outra janela. <button class="btn sm" id="cvVoltar" type="button" style="margin-left:auto">Trazer de volta para cá</button></div>
-      <div class="panel-h"><h2>Ficha de qualificação</h2><span class="count" id="confProg"></span><span class="seg" style="margin-left:auto"><button type="button" id="vFicha" aria-pressed="true">Ficha</button><button type="button" id="vResumo" aria-pressed="false">Resumo</button></span><button class="btn sm" id="cMat" type="button">Ler matrícula</button></div>
-      <div class="panel-b" id="confForm"></div><div class="panel-b" id="confResumo" hidden></div>
+      <div class="panel-h"><h2>Ficha de qualificação</h2><span class="count" id="confProg"></span><span class="seg" style="margin-left:auto"><button type="button" id="vFicha" aria-pressed="true">Ficha</button><button type="button" id="vResumo" aria-pressed="false">Resumo</button></span><button class="btn sm" id="cMatTxt" type="button" title="Texto da matrícula com o que foi lido em destaque: copie dele para preencher o que ficou em branco">Texto da matrícula</button><button class="btn sm" id="cMat" type="button">Ler matrícula</button></div>
+      <div class="certbar" id="certBar" hidden></div><div class="panel-b" id="confForm"></div><div class="panel-b" id="confResumo" hidden></div>
     </div>
   </section>
 
@@ -95,6 +95,7 @@
         <label class="fld" style="width:120px"><span style="font-size:12px;font-weight:600;color:var(--muted)">Bloco</span><select id="bBloco"><option value="">Todos</option></select></label>
         <button class="btn" id="bApply" type="button">Aplicar</button>
       </div>
+      <div class="row" style="margin-bottom:8px"><button class="btn" type="button" id="compBusca" title="Procura &quot;Apartamento 101 será composto de…&quot; no memorial (e na convenção)">Buscar composições no memorial</button><span class="muted" style="font-size:12px">Composição em <b style="background:#fff6d6;padding:0 4px">amarelo</b> veio do memorial e espera você conferir (✓).</span></div>
       <div class="tbl-wrap"><table class="q" id="tQ2"></table></div></section>
     <section class="card" id="q3Card"><h2>Quadro III — custo global e unitário</h2><p class="muted">O item 5 é calculado: área equivalente global (4.6) × CUB. Lance as demais parcelas como constam no quadro do RT.</p><div id="q3Box"></div></section>
     <section class="card" id="ivbCard"><h2>Quadro IV-B e auditoria</h2><p class="muted">Resumo das áreas para os atos de registro (NBR 12721, 5.8.3) e conferências automáticas.</p><ul class="aud" id="audList" style="margin-bottom:16px"></ul><div class="tbl-wrap"><table class="q" id="tIVB"></table></div></section>
@@ -171,8 +172,8 @@
     <div class="dlg-act"><button class="btn primary" value="ok" type="submit">Ler e preencher</button><button class="btn" value="cancel" type="submit" formnovalidate>Cancelar</button></div>
   </form>
 </dialog>
-<dialog id="dlgMatTxt" aria-labelledby="dmtTitle" style="width:min(980px,96vw)">
-  <div class="row"><h2 id="dmtTitle" style="margin:0">Texto da matrícula · o que o programa leu</h2><button class="btn sm" id="matTxtFechar" type="button" style="margin-left:auto">Fechar</button></div>
+<dialog id="dlgMatTxt" class="flut" aria-labelledby="dmtTitle">
+  <div class="row"><h2 id="dmtTitle" style="margin:0">Texto da matrícula · o que o programa leu</h2><button class="btn sm" id="matTxtJanela" type="button" style="margin-left:auto" title="Abrir numa janela separada (dá para levar ao outro monitor)">⧉ Janela</button><button class="btn sm" id="matTxtFechar" type="button">Fechar</button></div>
   <p class="mk-leg"><mark class="mk-imovel">imóvel</mark> <mark class="mk-area">área</mark> <mark class="mk-conf">confrontações</mark> <mark class="mk-prop">proprietário na abertura</mark> <mark class="mk-titular">titular atual</mark> <mark class="mk-ato">atos</mark> <mark class="mk-onus">ônus em aberto</mark> <mark class="mk-onusok">ônus cancelado</mark> <mark class="mk-cep">CEP · CCI · inscrição</mark> · passe o mouse para ver o campo</p>
   <div id="matTxtView" class="mattxt"></div>
 </dialog>
@@ -187,27 +188,27 @@
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <div class="busy" id="busy" hidden><div class="busy-box" role="status"><strong id="busyMsg">Processando…</strong><div class="bar"><i id="busyBar"></i></div></div></div>
 
-<script src="lib/pdf.min.js?v=1.4.0"></script>
-<script src="lib/pdf-lib.min.js?v=1.4.0"></script>
-<script src="lib/jszip.min.js?v=1.4.0"></script>
-<script src="lib/pako_inflate.min.js?v=1.4.0"></script>
-<script src="lib/utif.js?v=1.4.0"></script>
-<script src="motor.js?v=1.4.0"></script>
-<script src="js/nucleo.js?v=1.4.0"></script>
-<script src="js/leitor.js?v=1.4.0"></script>
-<script src="js/dominio.js?v=1.4.0"></script>
-<script src="js/estado.js?v=1.4.0"></script>
-<script src="js/navegacao.js?v=1.4.0"></script>
-<script src="js/ged.js?v=1.4.0"></script>
-<script src="js/visualizador.js?v=1.4.0"></script>
-<script src="js/conferencia.js?v=1.4.0"></script>
-<script src="js/matricula.js?v=1.4.0"></script>
-<script src="js/checklist.js?v=1.4.0"></script>
-<script src="js/incorporacao.js?v=1.4.0"></script>
-<script src="js/quadrospdf.js?v=1.4.0"></script>
-<script src="js/ortografia.js?v=1.4.0"></script>
-<script src="js/nota.js?v=1.4.0"></script>
-<script src="js/aprendizado.js?v=1.4.0"></script>
-<script src="js/inicio.js?v=1.4.0"></script>
+<script src="lib/pdf.min.js?v=1.5.0"></script>
+<script src="lib/pdf-lib.min.js?v=1.5.0"></script>
+<script src="lib/jszip.min.js?v=1.5.0"></script>
+<script src="lib/pako_inflate.min.js?v=1.5.0"></script>
+<script src="lib/utif.js?v=1.5.0"></script>
+<script src="motor.js?v=1.5.0"></script>
+<script src="js/nucleo.js?v=1.5.0"></script>
+<script src="js/leitor.js?v=1.5.0"></script>
+<script src="js/dominio.js?v=1.5.0"></script>
+<script src="js/estado.js?v=1.5.0"></script>
+<script src="js/navegacao.js?v=1.5.0"></script>
+<script src="js/ged.js?v=1.5.0"></script>
+<script src="js/visualizador.js?v=1.5.0"></script>
+<script src="js/conferencia.js?v=1.5.0"></script>
+<script src="js/matricula.js?v=1.5.0"></script>
+<script src="js/checklist.js?v=1.5.0"></script>
+<script src="js/incorporacao.js?v=1.5.0"></script>
+<script src="js/quadrospdf.js?v=1.5.0"></script>
+<script src="js/ortografia.js?v=1.5.0"></script>
+<script src="js/nota.js?v=1.5.0"></script>
+<script src="js/aprendizado.js?v=1.5.0"></script>
+<script src="js/inicio.js?v=1.5.0"></script>
 </body>
 </html>

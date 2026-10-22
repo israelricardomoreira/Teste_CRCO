@@ -36,11 +36,13 @@ Organiza o GED, confere os dados lado a lado com o documento de origem, mantém 
 | Comparar | **⇆ Comparar** divide o documento em duas páginas (ex.: título × matrícula) |
 | Monitor em pé / vários documentos | **⧉ Outra janela** abre o documento numa janela própria (arraste para o monitor em pé); **＋⧉** abre mais janelas independentes para comparar documentos. Letra pequena fica nítida no zoom (a página é redesenhada na resolução do zoom) |
 | Checklist | Etapa **3**: carregue o modelo do tipo de ato, edite, exclua ou inclua itens e **Salve como meu modelo** |
-| Incorporação | Etapa **4**: **Importar Quadros I, II e III do PDF** (o ★ indica o documento com os quadros) preenche áreas, coeficientes, CUB e custo global e confere as colunas calculadas do RT. Casas decimais por coluna (seletor no cabeçalho). Célula vermelha = não bate com o RT; térreo (col. 17) tem de somar a área do terreno; data do requerimento anterior ao alvará fica vermelha |
+| Incorporação | Etapa **4**: **Importar Quadros I, II e III do PDF** (★ = documento com os quadros) preenche áreas, coeficientes, CUB, custo global **e as composições do memorial** (em amarelo até você clicar em **✓ Conferido**). Casas decimais: **− +** no cabeçalho de cada coluna (inclusive a 31), a qualquer momento. Verde = igual ao RT; **amarelo = diferença de arredondamento/truncamento** (passe o mouse para ver o valor correto; a minuta repete o quadro); vermelho = diverge. Térreo (col. 17) tem de somar o terreno; requerimento anterior ao alvará fica vermelho |
 | Nota devolutiva | Etapa **5**: **✓ Revisar texto** confere ortografia (dicionário pt-BR offline) e regras do registro (NBR 12.721, Lei 4.591/64, Lei 6.015/73, palavras repetidas, pontuação); clique na sugestão para trocar ou em *ignorar*. **Concluir: baixar GED + análise** baixa ZIP, .gori e aprendizado de uma vez |
 | Título voltou | **Abrir análise** → .gori → o sistema pede o **ZIP do GED** (ou os PDFs) e religa as marcações em cada página. Sem o GED, ele pergunta *Realmente não vai adicionar o GED?* |
-| Matrícula colada | No cartão da matrícula, **Ver o texto lido** mostra o texto com o que o sistema extraiu em destaque |
-| Arquivo de aprendizado | Baixa **junto com o ZIP do GED, em arquivo separado** (`aprendizado_….json`), ou pelo botão **Aprendizado**. Vai **anonimizado** (nomes viram `[PF_1]`/`[PJ_1]`; CPF, RG, CNH e números longos viram `#`). Guarde e mande para o Claude analisar: ele mostra o que o sistema sugeriu × o que você deixou, o que precisou digitar, o perfil de cada documento e suas notas (botão ⚑ ao lado do campo) |
+| Texto da matrícula | Cartão da matrícula (**Ver o texto lido**) ou Conferência (**Texto da matrícula**): caixa flutuante que não trava a ficha (arraste pelo título) ou **⧉ Janela** separada com busca e tamanho da letra. O que foi lido fica em destaque |
+| Certidão aberta no leitor | Faixa azul no topo da ficha com tipo, resultado, emissão e validade. **Validade em dias**: digite os dias e a data é calculada a partir da emissão (também na tabela de certidões) |
+| Resumo | Unidades com a mesma composição numa linha só, com a **fração ideal (col. 31)** de cada uma na frente |
+| Arquivo de aprendizado | Baixa **junto com o ZIP do GED, em arquivo separado** (`aprendizado_….json`), ou pelo botão **Aprendizado**. Vai **anonimizado** (nomes viram `[PF_1]`/`[PJ_1]`; CPF, RG, CNH e números longos viram `#`). Guarde e mande para o Claude analisar: ele mostra o que o sistema sugeriu × o que você deixou, o que precisou digitar, o perfil de cada documento e suas notas (botão ⚑ ao lado do campo). Desde a 1.5.0 também registra: de onde veio cada dado colado (texto da página, matrícula ou fora) ou digitado, o texto de cada bloco conferido, o tipo sugerido × escolhido no GED e as idas e voltas (etapas, páginas, documentos, campos) |
 | Guardar a análise | **Salvar análise** (Ctrl+S) baixa um `.gori`. **Abrir análise** retoma. Também abre os `.gori` da Calculadora GO-RI v3 |
 
 As marcações das páginas (marca-texto, riscos, notas, ✓ conferida) vão no `.gori` e reaparecem quando você reabre a análise e importa os mesmos arquivos. Elas **não** vão para o ZIP do GED.
@@ -81,7 +83,7 @@ O `.gori` tem dados do título (nomes, CPF/CNPJ). Guarde na pasta do processo ou
 ## Atualizar sem quebrar
 
 1. Antes de subir, rode os testes: `node --test tests/motor.test.js` (tem que dar `pass` em todos).
-2. Toda entrega tem **um número de versão** (hoje `1.4.0`). Ele aparece em: `motor.js` (VERSAO), `js/inicio.js` (VERSAO), na linha de registro do topo de cada `js/*.js` e no `?v=` dos `<script>` do `index.html`. Troque em todos.
+2. Toda entrega tem **um número de versão** (hoje `1.5.0`). Ele aparece em: `motor.js` (VERSAO), `js/inicio.js` (VERSAO), na linha de registro do topo de cada `js/*.js` e no `?v=` dos `<script>` do `index.html`. Troque em todos.
 3. Suba **todos** os arquivos alterados juntos. Se faltar algum, o site mostra um aviso vermelho dizendo qual arquivo está em versão diferente, em vez de funcionar pela metade.
 4. Se algo der errado: **Commits → escolha a versão anterior → Revert**.
 
@@ -97,3 +99,4 @@ O `.gori` tem dados do título (nomes, CPF/CNPJ). Guarde na pasta do processo ou
 
 ### Licenças de terceiros
 - `lib/ortografia/pt_BR.aff` e `pt_BR.dic`: dicionário VERO (LibreOffice pt-BR), LGPLv3 / MPL.
+- `mattxt.html` + `js/mattxt.js`: janela separada do texto da matrícula.

@@ -1,7 +1,7 @@
 /* Qualificador CRCO — js/quadrospdf.js: importa os Quadros I, II e III da NBR 12721 direto do PDF do RT
  * (pela posição de cada número na linha das colunas). A regra de leitura fica no motor.js. */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/quadrospdf.js'] = '1.4.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/quadrospdf.js'] = '1.5.0';
 
 function nbrPontuacao(d){
   return d.pageIds.map(pageById).filter(Boolean).reduce((n, p) => { const t = pageText(p); return n + (/QUADRO\s+II\b/i.test(t) ? 5 : 0) + (/QUADRO\s+I\b/i.test(t) ? 5 : 0) + (/NBR\s*12\.?721/i.test(t) ? 1 : 0); }, 0);
@@ -45,12 +45,36 @@ async function importarQuadrosPDF(docId){
   const nome = {cub:'CUB', cubMes:'mês do CUB', padrao:'projeto-padrão', v13rt:'custo global (13)'};
   const msgs = [['ok', `Lido de "${d.name}": ${L.q1.length} tipo(s) de pavimento e ${L.q2.length} unidade(s)${q3lidos.length ? '; do Quadro III: ' + q3lidos.map(k => nome[k] + ' ' + (k === 'cubMes' ? I.q3[k].split('-').reverse().join('/') : I.q3[k])).join(', ') : ''}.`]];
   L.avisos.forEach(a => msgs.push(['warn', a]));
-  msgs.push(dif.length ? ['err', `${dif.length} valor(es) calculado(s) pelo RT não batem com o cálculo: ${dif.slice(0, 8).join('; ')}${dif.length > 8 ? '…' : ''}`] : ['ok', 'Todas as colunas que o RT calculou (e os totais) batem com o cálculo daqui.']);
+  if (dif.arred.length) msgs.push(['warn', `${dif.arred.length} valor(es) com diferença de arredondamento (provável truncamento): ${dif.arred.slice(0, 6).join('; ')}${dif.arred.length > 6 ? '…' : ''}. Avalie se aceita.`]);
+  msgs.push(dif.length ? ['err', `${dif.length} valor(es) calculado(s) pelo RT não batem com o cálculo: ${dif.slice(0, 8).join('; ')}${dif.length > 8 ? '…' : ''}`] : ['ok', dif.arred.length ? 'Fora o arredondamento acima, as colunas que o RT calculou batem com o cálculo daqui.' : 'Todas as colunas que o RT calculou (e os totais) batem com o cálculo daqui.']);
   msgs.push(['warn', 'Confira a composição das unidades (vem do memorial) e marque os quadros como conferidos no documento.']);
   I.importado = {doc:d.id, em:new Date().toISOString(), msgs};
   AP().quadros = {linhasQ1:L.q1.length, linhasQ2:L.q2.length, avisos:L.avisos, divergencias:dif.length, quadroIII:q3lidos, paginas:pgs.length, origem:pgs.map(origemPagina)};
+  const nc = buscarComposicoes(true); if (nc) msgs.splice(msgs.length - 1, 1, ['warn', `${nc} composição(ões) das unidades vieram do memorial e estão em amarelo no Quadro II: confira e clique em ✓.`]);
   markDirty(); renderInc(); toast(dif.length ? 'Quadros importados, com divergências: veja a lista.' : 'Quadros importados e conferidos com o cálculo.', dif.length ? 'err' : 'ok');
 }
+/* ---------- composição das unidades a partir do memorial (fica pendente até o usuário confirmar) ---------- */
+function buscarComposicoes(silencioso){
+  const I = S.inc; if (!I.q2.length) { if (!silencioso) toast('Gere ou importe o Quadro II antes.', 'err'); return 0; }
+  const pref = d => d.category === 'MEMORIAL' ? 0 : /memorial/i.test(d.name) ? 1 : /conven/i.test(d.name) ? 2 : 3;
+  const docs = [...S.docs].sort((a, b) => pref(a) - pref(b) || a.order - b.order);
+  const faltam = I.q2.filter(r => !String(r.comp || '').trim()), nomes = faltam.map(r => r.nome);
+  if (!faltam.length) { if (!silencioso) toast('Todas as unidades já têm composição. Para buscar de novo, apague o texto da unidade.'); return 0; }
+  let n = 0;
+  for (const d of docs) {
+    const pgs = d.pageIds.map(pageById).filter(Boolean), txt = pgs.map(pageText).join('\n'); if (!/compost|constitu[íi]d/i.test(txt)) continue;
+    const L = Motor.lerComposicoes(txt, faltam.filter(r => !r._achou).map(r => r.nome));
+    faltam.forEach(r => { const a = L[r.nome]; if (!a || r._achou) return;
+      const pg = pgs.find(p => Motor.chaveComposicao(pageText(p).replace(/\s+/g, ' ')).includes(Motor.chaveComposicao(a.texto).slice(0, 40))) || pgs[0];
+      r._achou = true; if (!String(r.comp || '').trim()) { r.comp = a.texto; r.compPend = true; r.compPg = pg ? pg.id : ''; n++; registrarSugestao('comp:' + r.id, a.texto, {regra:'memorial.composicao', fonte:fonteDe(pg && pg.id), contexto:a.trecho}); } });
+    if (faltam.every(r => r._achou)) break;
+  }
+  faltam.forEach(r => delete r._achou);
+  if (n) { markDirty(); renderQ2(); recalcInc(); }
+  if (!silencioso || n) toast(n ? `${n} composição(ões) lida(s) do memorial: em amarelo até você conferir (✓).` : `Não encontrei a composição de ${nomes.length} unidade(s) nos documentos.`, n ? 'ok' : 'err');
+  return n;
+}
 function bindQuadrosPDF(){
+  $('compBusca').onclick = () => buscarComposicoes(false);
   $('nbrImp').addEventListener('click', e => { if (e.target.closest('#nbrBtn')) importarQuadrosPDF($('nbrDoc').value); });
 }
