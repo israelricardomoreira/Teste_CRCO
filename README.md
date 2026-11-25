@@ -42,7 +42,7 @@ Organiza o GED, confere os dados lado a lado com o documento de origem, mantém 
 | Texto da matrícula | Cartão da matrícula (**Ver o texto lido**) ou Conferência (**Texto da matrícula**): caixa flutuante que não trava a ficha (arraste pelo título) ou **⧉ Janela** separada com busca e tamanho da letra. O que foi lido fica em destaque |
 | Certidão aberta no leitor | Faixa azul no topo da ficha com tipo, resultado, emissão e validade. **Validade em dias**: digite os dias e a data é calculada a partir da emissão (também na tabela de certidões) |
 | Resumo | Unidades com a mesma composição numa linha só, com a **fração ideal (col. 31)** de cada uma na frente |
-| Arquivo de aprendizado | Baixa **junto com o ZIP do GED, em arquivo separado** (`aprendizado_….json`), ou pelo botão **Aprendizado**. Vai **anonimizado** (nomes viram `[PF_1]`/`[PJ_1]`; CPF, RG, CNH e números longos viram `#`). Guarde e mande para o Claude analisar: ele mostra o que o sistema sugeriu × o que você deixou, o que precisou digitar, o perfil de cada documento e suas notas (botão ⚑ ao lado do campo). Desde a 1.5.7 também registra: de onde veio cada dado colado (texto da página, matrícula ou fora) ou digitado, o texto de cada bloco conferido, o tipo sugerido × escolhido no GED e as idas e voltas (etapas, páginas, documentos, campos) |
+| Arquivo de aprendizado | Baixa **junto com o ZIP do GED, em arquivo separado** (`aprendizado_….json`), ou pelo botão **Aprendizado**. Vai **anonimizado** (nomes viram `[PF_1]`/`[PJ_1]`; CPF, RG, CNH e números longos viram `#`) Desde a 1.5.8 também entram o nome curto das empresas e das pessoas (ex.: o primeiro nome que aparece sozinho em nomes de arquivo e certidões) e o número da CI. Guarde e mande para o Claude analisar: ele mostra o que o sistema sugeriu × o que você deixou, o que precisou digitar, o perfil de cada documento e suas notas (botão ⚑ ao lado do campo). Desde a 1.5.8 também registra: de onde veio cada dado colado (texto da página, matrícula ou fora) ou digitado, o texto de cada bloco conferido, o tipo sugerido × escolhido no GED e as idas e voltas (etapas, páginas, documentos, campos) |
 | Guardar a análise | **Salvar análise** (Ctrl+S) baixa um `.gori`. **Abrir análise** retoma. Também abre os `.gori` da Calculadora GO-RI v3 |
 
 As marcações das páginas (marca-texto, riscos, notas, ✓ conferida) vão no `.gori` e reaparecem quando você reabre a análise e importa os mesmos arquivos. Elas **não** vão para o ZIP do GED.
@@ -83,7 +83,7 @@ O `.gori` tem dados do título (nomes, CPF/CNPJ). Guarde na pasta do processo ou
 ## Atualizar sem quebrar
 
 1. Antes de subir, rode os testes: `node --test tests/motor.test.js` (tem que dar `pass` em todos).
-2. Toda entrega tem **um número de versão** (hoje `1.5.7`). Ele aparece em: `motor.js` (VERSAO), `js/inicio.js` (VERSAO), na linha de registro do topo de cada `js/*.js` e no `?v=` dos `<script>` do `index.html`. Troque em todos.
+2. Toda entrega tem **um número de versão** (hoje `1.5.8`). Ele aparece em: `motor.js` (VERSAO), `js/inicio.js` (VERSAO), na linha de registro do topo de cada `js/*.js` e no `?v=` dos `<script>` do `index.html`. Troque em todos.
 3. Suba **todos** os arquivos alterados juntos. Se faltar algum, o site mostra um aviso vermelho dizendo qual arquivo está em versão diferente, em vez de funcionar pela metade.
 4. Se algo der errado: **Commits → escolha a versão anterior → Revert**.
 

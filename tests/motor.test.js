@@ -427,3 +427,9 @@ test('validacoesDocs: cada documento com o site e o código lido', () => {
   assert.deepEqual(por('p').map(i => [i.id, i.codigo]), [['protdf', 'UD6-LOA-MC4'], ['selo-tjdft', 'TJDFT20260410006596LTLX']]);
   assert.deepEqual(por('h'), []);                                       /* CNH: não tem validador web */
 });
+
+test('anonimizador: nome curto conhecido, CI, CPF e CNPJ não vazam', () => {
+  const an = M.criarAnonimizador(['EXEMPLARIA EMPREENDIMENTOS LTDA', 'EXEMPLARIA']);
+  const o = an.anon('Certidão EXEMPLARIA TRABALHISTA CNPJ 12.345.678/0001-90 CI 3456789 CPF 123.456.789-09');
+  assert.ok(!/EXEMPLARIA|12\.345|3456789|123\.456/.test(o), o);
+});

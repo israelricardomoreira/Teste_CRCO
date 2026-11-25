@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/nota.js: etapa 5 · exigências, catálogo e nota devolutiva */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/nota.js'] = '1.5.7';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/nota.js'] = '1.5.8';
 /* =====================================================================
    5. NOTA DEVOLUTIVA
    ===================================================================== */

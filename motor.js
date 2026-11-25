@@ -314,7 +314,7 @@ function auditoria(R, I, campos, meta){
       conhecidos.forEach(n => { const rx = new RegExp(esc(n).replace(/\s+/g, '\\s+'), 'gi'); s = s.replace(rx, token(n)); });
       s = s.replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, m => m.replace(/\d/g, '#'))
         .replace(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g, m => m.replace(/\d/g, '#'))
-        .replace(/((?:RG|R\.G\.|identidade|CNH|habilita[cç][aã]o)\s*(?:n[º°o.]*\s*)?:?\s*)([0-9][0-9.\-\/xX]{3,})/gi, (m, a, n) => a + n.replace(/\d/g, '#'))
+        .replace(/(\b(?:RG|R\.G\.|CI|identidade|CNH|habilita[cç][aã]o)\s*(?:n[º°o.]*\s*)?:?\s*)([0-9][0-9.\-\/xX]{3,})/gi, (m, a, n) => a + n.replace(/\d/g, '#'))
         .replace(/\b\d{4,6}(?:\s\d{1,7}){4,}\b/g, m => m.replace(/\d/g, '#'))
         .replace(/\b\d{10,}\b/g, m => m.replace(/\d/g, '#'))
         .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[EMAIL]')
@@ -749,6 +749,6 @@ function auditoria(R, I, campos, meta){
     }
     return out;
   }
-  return {VERSAO:'1.5.7', validacoesDocs:validacoesDocs, urlsDoTexto:urlsDoTexto, exigidosIncorporacao:exigidosIncorporacao, ordemDoc:ordemDoc, lerFichaDocs:lerFichaDocs, textoIlegivel:textoIlegivel, nomeLimpo:nomeLimpo, categoriaPeloNome:categoriaPeloNome, categoriaPeloTexto:categoriaPeloTexto, onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
+  return {VERSAO:'1.5.8', validacoesDocs:validacoesDocs, urlsDoTexto:urlsDoTexto, exigidosIncorporacao:exigidosIncorporacao, ordemDoc:ordemDoc, lerFichaDocs:lerFichaDocs, textoIlegivel:textoIlegivel, nomeLimpo:nomeLimpo, categoriaPeloNome:categoriaPeloNome, categoriaPeloTexto:categoriaPeloTexto, onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
 })();
 if (typeof module !== 'undefined') module.exports = Motor;

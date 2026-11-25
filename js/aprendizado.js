@@ -2,7 +2,7 @@
  * checklist, exigências e tempos, e baixa tudo ANONIMIZADO num .json separado (junto com o ZIP do GED).
  * Serve para melhorar a leitura dos documentos a cada versão. Nada é enviado: o arquivo só é baixado. */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/aprendizado.js'] = '1.5.7';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/aprendizado.js'] = '1.5.8';
 
 function freshAprend(){ return {inicio:new Date().toISOString(), sug:{}, manual:{}, notas:[], tempos:{}, ckModelo:null}; }
 function AP(){ if (!S.aprend) S.aprend = freshAprend(); return S.aprend; }
@@ -94,7 +94,11 @@ function nomesParaAnonimizar(){
   const n = [S.meta.qualificador, S.campos.incNome, S.campos.rtNome, ...S.partes.map(p => p.nome)];
   if (S.mat && S.mat.R) { const R = S.mat.R; n.push(R.titular && R.titular.nome, R.titular && R.titular.nomeAtual, R.proprietarioInicial && R.proprietarioInicial.nome, ...R.atos.map(a => a.adquirente)); }
   Object.values(AP().sug).forEach(s => { if (s.ehNome) n.push(s.valor); });
-  return n.filter(Boolean);
+  (S.certidoes || []).forEach(c => { if (c && c.pessoa) n.push(c.pessoa); });
+  /* nome curto (primeira palavra) de cada nome: pega "PATAMAR" ou "JEAN" escritos sozinhos em nomes de arquivo e certidões */
+  const GEN = /^(CONSTRUTORA|INCORPORADORA|EMPREENDIMENTOS?|IMOBILIARIA|ENGENHARIA|COMERCIO|SERVICOS|PARTICIPACOES|ADMINISTRADORA|INVESTIMENTOS|CONDOMINIO|RESIDENCIAL|LOTEAMENTO|BRASIL|GOIAS|BRASILIA)$/;
+  const curtos = n.filter(Boolean).map(x => String(x).trim().split(/s+/)[0]).filter(w => w.length >= 5 && /^[A-Za-zÀ-ÿ]+$/.test(w) && !GEN.test(w.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase()));
+  return [...n, ...curtos].filter(Boolean);
 }
 function montarAprendizado(){
   aprendTrocaEtapa(curStep);
