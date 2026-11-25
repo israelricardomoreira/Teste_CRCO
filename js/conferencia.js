@@ -1,7 +1,7 @@
 /* Qualificador CRCO — js/conferencia.js: etapa 2 · conferência. Documento grande com ferramentas (js/leitor.js),
  * ficha ao lado (ou embaixo, em tela em pé) e opção de abrir o documento numa janela separada. */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/conferencia.js'] = '1.5.3';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/conferencia.js'] = '1.5.4';
 
 const CV = {docId:'', i:0};                 /* página aberta na Conferência (compartilhada com a janela separada) */
 const CMP = {docId:'', i:0};                /* página do "Comparar" */
@@ -145,12 +145,34 @@ async function renderPDFAlta(p, largura){
   return c;
 }
 /* ---------- certidões: as do GED entram sozinhas ---------- */
+/* certidões do mesmo tipo, órgão e pessoa: avisa quais estão repetidas e qual é a mais nova */
+function certDuplicadas(){
+  const g = {}, dup = {};
+  S.certidoes.forEach(c => { if (!c.docId) return; const k = [c.tipo, c.orgao || '', (c.pessoa && c.pessoa.doc) || ''].join('|'); (g[k] = g[k] || []).push(c); });
+  Object.values(g).forEach(l => { if (l.length > 1) { const nova = l.slice().sort((a, b) => String(b.emissao).localeCompare(String(a.emissao)))[0]; l.forEach(c => { dup[c.id] = {n:l.length, maisNova:c === nova}; }); } });
+  return dup;
+}
+function certInfoHTML(c){
+  const dup = certDuplicadas()[c.id], p = c.pessoa;
+  const pes = p ? (p.nome ? p.nome + (p.doc ? ' (' + p.doc + ')' : '') : p.doc) : '';
+  const partes = [c.orgao, pes].filter(Boolean);
+  return (partes.length ? '<small class="muted">' + esc(partes.join(' · ')) + '</small> ' : '')
+    + (dup ? (dup.maisNova ? '<span class="badge warn">repetida ×' + dup.n + ' · esta é a mais nova</span>' : '<span class="badge err">repetida: há outra mais nova</span>') : '')
+    + (c.tipo === 'TRT' ? ' <span class="badge warn">não substitui a CNDT</span>' : '') + '<br>';
+}
+function certInfoDoc(d){
+  if (d.category !== 'CERTIDAO') return '';
+  const c = S.certidoes.find(x => x.docId === d.id); if (!c) return '';
+  const dup = certDuplicadas()[c.id], p = c.pessoa;
+  const txt = [c.orgao, p && (p.nome || p.doc), c.emissao ? 'emitida ' + fmtDate(c.emissao) : ''].filter(Boolean).join(' · ');
+  return (txt ? ' <small class="muted">· ' + esc(txt) + '</small>' : '') + (dup ? (dup.maisNova ? ' <span class="badge warn">repetida · mais nova</span>' : ' <span class="badge err">repetida</span>') : '');
+}
 function syncCertidoesDoGED(){
   const docs = S.docs.filter(d => d.category === 'CERTIDAO'), ids = new Set(docs.map(d => d.id));
   S.certidoes = S.certidoes.filter(c => !c.docId || ids.has(c.docId));
   docs.forEach(d => {
     let c = S.certidoes.find(x => x.docId === d.id);
-    if (!c) { const L = Motor.lerCertidao(d.name, d.pageIds.map(pageById).filter(Boolean).map(pageText).join(' ')); c = {id:uid(), docId:d.id, tipo:L.tipo, res:L.res, emissao:L.emissao, validade:d.validade || L.validade, obs:L.tipo === 'OUTRA' ? d.name : ''}; S.certidoes.push(c); if (!d.validade && L.validade) d.validade = L.validade; }
+    if (!c) { const L = Motor.lerCertidao(d.name, d.pageIds.map(pageById).filter(Boolean).map(pageText).join(' ')); c = {id:uid(), docId:d.id, tipo:L.tipo, res:L.res, orgao:L.orgao || '', pessoa:L.pessoa || null, emissao:L.emissao, validade:d.validade || L.validade, obs:L.tipo === 'OUTRA' ? d.name : ''}; S.certidoes.push(c); if (!d.validade && L.validade) d.validade = L.validade; }
     else if (d.validade && d.validade !== c.validade) c.validade = d.validade;
   });
 }
@@ -237,7 +259,7 @@ function renderConfForm(){
       <td><button class="btn sm danger" type="button" data-rmparte="${p.id}" aria-label="Remover parte">✕</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted" style="font-size:13px">Nenhuma parte lançada.</p>';
   h += `<h3 class="grp-h">Certidões <button class="btn sm" type="button" id="addCert" style="margin-left:auto">+ Certidão</button></h3>`;
   h += S.certidoes.length ? `<p class="muted" style="font-size:12px;margin-bottom:6px">As certidões do GED entram aqui sozinhas (tipo, resultado e datas lidos do texto; a validade é a mesma do GED). Confira e ajuste.</p><table class="lt"><thead><tr><th>Tipo</th><th>Resultado</th><th>Emissão</th><th>Válida até</th><th>Situação</th><th></th></tr></thead><tbody>${S.certidoes.map(c => { const d = c.docId && S.docs.find(x => x.id === c.docId); return `<tr>
-      <td>${d ? `<button type="button" class="srcb" data-godoc="${d.id}" title="Abrir a certidão">📄 ${String(d.order).padStart(2, '0')} ${esc(d.name)}</button><br>` : ''}<select data-bind="ct:${c.id}:tipo" aria-label="Tipo">${Object.entries(CERT).map(([k, v]) => `<option value="${k}"${k === c.tipo ? ' selected' : ''}>${v[0]}</option>`).join('')}</select>${c.tipo === 'OUTRA' ? `<input data-bind="ct:${c.id}:obs" value="${esc(c.obs)}" placeholder="Descreva a certidão" style="margin-top:4px">` : ''}</td>
+      <td>${d ? `<button type="button" class="srcb" data-godoc="${d.id}" title="Abrir a certidão">📄 ${String(d.order).padStart(2, '0')} ${esc(d.name)}</button><br>${certInfoHTML(c)}` : ''}<select data-bind="ct:${c.id}:tipo" aria-label="Tipo">${Object.entries(CERT).map(([k, v]) => `<option value="${k}"${k === c.tipo ? ' selected' : ''}>${v[0]}</option>`).join('')}</select>${c.tipo === 'OUTRA' ? `<input data-bind="ct:${c.id}:obs" value="${esc(c.obs)}" placeholder="Descreva a certidão" style="margin-top:4px">` : ''}</td>
       <td><select data-bind="ct:${c.id}:res" aria-label="Resultado">${['Negativa','Positiva','Positiva com efeito de negativa'].map(o => `<option${o === c.res ? ' selected' : ''}>${o}</option>`).join('')}</select></td>
       <td><input type="date" data-bind="ct:${c.id}:emissao" value="${esc(c.emissao)}" aria-label="Emissão"></td>
       <td><input type="date" data-bind="ct:${c.id}:validade" value="${esc(c.validade)}" aria-label="Válida até"><input class="dias" type="number" min="1" max="999" data-diasct="${c.id}" placeholder="ou nº de dias" title="Certidão que diz &quot;validade de X dias&quot;: digite os dias e a data é calculada a partir da emissão" aria-label="Validade em dias"></td>

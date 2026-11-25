@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/dominio.js: tipos de ato, categorias do GED, certidões, campos da ficha e modelos de checklist */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/dominio.js'] = '1.5.3';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/dominio.js'] = '1.5.4';
 /* Categorias do GED: exatamente as do sistema do cartório (o código vai no nome do arquivo do ZIP) */
 const CAT_NOME = {ATO_LAVRADO:'Ato Lavrado', CERTIDAO:'Certidão', CONTRATO:'Contrato', DECLARACAO:'Declaração', DOCUMENTO_PESSOAL:'Documento Pessoal', ESCRITURA:'Escritura',
   MATRICULA:'Matrícula', MEMORIAL:'Memorial', OUTROS:'Outros', PLANTA_ENGENHARIA:'Planta Engenharia', PROCURACAO:'Procuração', PROJETO:'Projeto'};
@@ -19,6 +19,11 @@ const CERT = {
   TJDFT:['Distribuição (TJDFT)','de Distribuição, expedida pelo Tribunal de Justiça do Distrito Federal e Territórios'],
   PROTDF:['Protesto (DF)','Unificada de Protesto, expedida pela Central de Certidões de Protesto do DF'],
   ONUS:['Ônus reais','de Ônus Reais'],
+  CIVF:['Ações cíveis (Justiça Federal)','de Ações Cíveis, expedida pela Justiça Federal (TRF 1ª Região)'],
+  CRIMF:['Ações criminais (Justiça Federal)','de Ações Criminais, expedida pela Justiça Federal (TRF 1ª Região)'],
+  TRT:['Ações trabalhistas (TRT, não é a CNDT)','de Ações Trabalhistas, expedida pelo Tribunal Regional do Trabalho da 18ª Região'],
+  SEFAZDF:['Estadual (SEFAZ/DF)','de Débitos, expedida pela Secretaria de Economia do Distrito Federal'],
+  SIMPL:['Simplificada (Junta Comercial)','Simplificada, expedida pela Junta Comercial'],
   OUTRA:['Outra','']
 };
 const CAMPOS = [

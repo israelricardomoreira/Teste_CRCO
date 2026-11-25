@@ -7,15 +7,15 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231d4f91'/%3E%3Ctext x='16' y='21' font-family='Arial' font-size='13' font-weight='700' fill='white' text-anchor='middle'%3EQR%3C/text%3E%3C/svg%3E">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<link rel="stylesheet" href="css/estilo.css?v=1.5.3">
-<link rel="stylesheet" href="css/leitor.css?v=1.5.3">
+<link rel="stylesheet" href="css/estilo.css?v=1.5.4">
+<link rel="stylesheet" href="css/leitor.css?v=1.5.4">
 </head>
 <body>
 <a class="skip" href="#main">Pular para o conteúdo</a>
 
 <header class="app-hdr">
   <div class="brand"><span class="logo" aria-hidden="true">QR</span>
-    <div><div class="brand-t">Qualificador CRCO</div><div class="brand-s">Registro de Imóveis · Cidade Ocidental/GO · v1.5.3</div></div></div>
+    <div><div class="brand-t">Qualificador CRCO</div><div class="brand-s">Registro de Imóveis · Cidade Ocidental/GO · v1.5.4</div></div></div>
   <div class="meta">
     <label for="mProt">Protocolo<input id="mProt" data-bind="m:protocolo" autocomplete="off"></label>
     <label for="mTipo">Tipo de ato<select id="mTipo" data-bind="m:tipoAto"></select></label>
@@ -49,7 +49,7 @@
     </div>
     <div class="panel">
       <div class="panel-h"><h2>Documentos do GED</h2><span class="count" id="docCount">0</span>
-        <div class="row" style="margin-left:auto"><button class="btn sm" id="btnToggleAll" type="button">Abrir todos</button><button class="btn sm" id="btnZip" type="button" disabled>Baixar ZIP do GED</button><button class="btn sm" id="btnAprend" type="button" title="Baixa só o arquivo de aprendizado (anonimizado)">Aprendizado</button><button class="btn sm danger" id="btnClearAll" type="button">Limpar tudo</button></div></div>
+        <div class="row" style="margin-left:auto"><button class="btn sm" id="btnOrdem" type="button" title="Põe os documentos na ordem da lista do cartório (matrícula, requerimento, PMCMV, ART, alvará, declarações, certidões…)">Ordenar pela lista</button><button class="btn sm" id="btnToggleAll" type="button">Abrir todos</button><button class="btn sm" id="btnZip" type="button" disabled>Baixar ZIP do GED</button><button class="btn sm" id="btnAprend" type="button" title="Baixa só o arquivo de aprendizado (anonimizado)">Aprendizado</button><button class="btn sm danger" id="btnClearAll" type="button">Limpar tudo</button></div></div>
       <div class="panel-b dropzone" id="docsList"></div>
     </div>
   </section>
@@ -188,27 +188,27 @@
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <div class="busy" id="busy" hidden><div class="busy-box" role="status"><strong id="busyMsg">Processando…</strong><div class="bar"><i id="busyBar"></i></div></div></div>
 
-<script src="lib/pdf.min.js?v=1.5.3"></script>
-<script src="lib/pdf-lib.min.js?v=1.5.3"></script>
-<script src="lib/jszip.min.js?v=1.5.3"></script>
-<script src="lib/pako_inflate.min.js?v=1.5.3"></script>
-<script src="lib/utif.js?v=1.5.3"></script>
-<script src="motor.js?v=1.5.3"></script>
-<script src="js/nucleo.js?v=1.5.3"></script>
-<script src="js/leitor.js?v=1.5.3"></script>
-<script src="js/dominio.js?v=1.5.3"></script>
-<script src="js/estado.js?v=1.5.3"></script>
-<script src="js/navegacao.js?v=1.5.3"></script>
-<script src="js/ged.js?v=1.5.3"></script>
-<script src="js/visualizador.js?v=1.5.3"></script>
-<script src="js/conferencia.js?v=1.5.3"></script>
-<script src="js/matricula.js?v=1.5.3"></script>
-<script src="js/checklist.js?v=1.5.3"></script>
-<script src="js/incorporacao.js?v=1.5.3"></script>
-<script src="js/quadrospdf.js?v=1.5.3"></script>
-<script src="js/ortografia.js?v=1.5.3"></script>
-<script src="js/nota.js?v=1.5.3"></script>
-<script src="js/aprendizado.js?v=1.5.3"></script>
-<script src="js/inicio.js?v=1.5.3"></script>
+<script src="lib/pdf.min.js?v=1.5.4"></script>
+<script src="lib/pdf-lib.min.js?v=1.5.4"></script>
+<script src="lib/jszip.min.js?v=1.5.4"></script>
+<script src="lib/pako_inflate.min.js?v=1.5.4"></script>
+<script src="lib/utif.js?v=1.5.4"></script>
+<script src="motor.js?v=1.5.4"></script>
+<script src="js/nucleo.js?v=1.5.4"></script>
+<script src="js/leitor.js?v=1.5.4"></script>
+<script src="js/dominio.js?v=1.5.4"></script>
+<script src="js/estado.js?v=1.5.4"></script>
+<script src="js/navegacao.js?v=1.5.4"></script>
+<script src="js/ged.js?v=1.5.4"></script>
+<script src="js/visualizador.js?v=1.5.4"></script>
+<script src="js/conferencia.js?v=1.5.4"></script>
+<script src="js/matricula.js?v=1.5.4"></script>
+<script src="js/checklist.js?v=1.5.4"></script>
+<script src="js/incorporacao.js?v=1.5.4"></script>
+<script src="js/quadrospdf.js?v=1.5.4"></script>
+<script src="js/ortografia.js?v=1.5.4"></script>
+<script src="js/nota.js?v=1.5.4"></script>
+<script src="js/aprendizado.js?v=1.5.4"></script>
+<script src="js/inicio.js?v=1.5.4"></script>
 </body>
 </html>

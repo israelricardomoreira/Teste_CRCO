@@ -342,25 +342,54 @@ function auditoria(R, I, campos, meta){
     return obj;
   }
   /* ---------- Certidões: tipo, resultado, emissão e validade a partir do texto ---------- */
+  /* Certidão: tipo, órgão, pessoa (nome e CPF/CNPJ), resultado, emissão e validade. Lê os formatos de TJGO (1º e 2º grau), TRF1, TJDFT,
+   * SEFAZ-GO/DF, CNDT (TST), TRT, PGFN, protesto DF e Junta. O texto do OCR também serve. */
+  const cpfFmt = d => d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
   function lerCertidao(nome, texto){
-    const t = (String(nome || '') + ' ' + String(texto || '')).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ');
-    let tipo = 'OUTRA';
-    if (/tjdft|distrito federal e territorios/.test(t)) tipo = 'TJDFT';
-    else if (/protesto/.test(t)) tipo = /distrito federal|\bdf\b|brasilia/.test(t) ? 'PROTDF' : 'PROT';
-    else if (/trabalhist|cndt|justica do trabalho/.test(t)) tipo = 'TRAB';
-    else if (/receita federal|pgfn|tributos federais|divida ativa da uniao/.test(t)) tipo = 'FED';
-    else if (/sefaz|secretaria (de estado )?da economia|fazenda estadual|estado de goias.{0,40}debito/.test(t)) tipo = 'SEFAZ';
-    else if (/municip|prefeitura/.test(t)) tipo = 'MUN';
-    else if (/criminal|criminais/.test(t)) tipo = 'CRIM';
-    else if (/civel|civeis|distribuicao|distribuidor/.test(t)) tipo = 'CIV';
+    const bruto = String(texto || '').replace(/\s+/g, ' ');
+    const t = (String(nome || '') + ' ' + bruto).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ');
+    let tipo = 'OUTRA', orgao = '';
+    const goias = /tribunal de justica do estado de goias|tjgo|projudi/.test(t), grau = /segundo grau|\bssg\b/.test(t) ? '2º grau' : '1º grau';
+    if (/tribunal regional federal|justica federal/.test(t)) { tipo = /criminal|criminais/.test(t) ? 'CRIMF' : 'CIVF'; orgao = /abrange a justica federal de 1/.test(t) ? 'Justiça Federal 1º grau (TRF1)' : /abrange o tribunal regional federal/.test(t) ? 'TRF1 (2º grau e turmas recursais)' : 'Justiça Federal (TRF1)'; }
+    else if (/protesto/.test(t)) { tipo = /distrito federal|\bdf\b|brasilia/.test(t) ? 'PROTDF' : 'PROT'; orgao = tipo === 'PROTDF' ? 'Central de Protesto do DF' : 'Cartório de Protesto'; }
+    else if (/tjdft|distrito federal e (?:dos )?territorios/.test(t)) { tipo = 'TJDFT'; orgao = 'TJDFT'; }
+    else if (/nao gera os efeitos da certidao negativa|nao consta acao trabalhista/.test(t)) { tipo = 'TRT'; orgao = 'TRT 18ª Região' + (/na (1|2)[aªº] instancia/.test(t) ? ' · ' + t.match(/na (1|2)[aªº] instancia/)[1] + 'ª instância' : '') + ' (não é a CNDT)'; }
+    else if (/trabalhist|cndt|justica do trabalho/.test(t)) { tipo = 'TRAB'; orgao = 'TST (CNDT)'; }
+    else if (/receita federal|pgfn|tributos federais|divida ativa da uniao/.test(t)) { tipo = 'FED'; orgao = 'RFB/PGFN'; }
+    else if (/sefaz.?df|governo do distrito federal/.test(t)) { tipo = 'SEFAZDF'; orgao = 'SEFAZ-DF'; }
+    else if (/sefaz|secretaria (de estado )?da economia|fazenda estadual|estado de goias.{0,40}debito/.test(t)) { tipo = 'SEFAZ'; orgao = 'SEFAZ-GO'; }
+    else if (/simplificada|junta comercial/.test(t)) { tipo = 'SIMPL'; orgao = 'Junta Comercial'; }
+    else if (/municip|prefeitura/.test(t)) { tipo = 'MUN'; orgao = 'Município'; }
+    else if (/criminal|criminais/.test(t)) { tipo = 'CRIM'; if (goias) orgao = 'TJGO ' + grau; }
+    else if (/civel|civeis|distribuicao|distribuidor/.test(t)) { tipo = 'CIV'; if (goias) orgao = 'TJGO ' + grau; }
     else if (/onus|inteiro teor|situacao juridica/.test(t)) tipo = 'ONUS';
     const res = /positiva com efeitos? de negativa/.test(t) ? 'Positiva com efeito de negativa' : /\bpositiva\b|constam? (debitos|acoes|processos|titulos)/.test(t) && !/nao constam?|nada consta|negativa/.test(t) ? 'Positiva' : 'Negativa';
-    const iso = d => { const m = d.match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
-    const val = t.match(/(?:valida ate|validade(?: ate)?|valido ate)\s*:?\s*(?:o dia\s*)?(\d{2}\/\d{2}\/\d{4})/), em = t.match(/(?:emitida|emissao|expedida|gerada|data da certidao|emitido)\D{0,25}(\d{2}\/\d{2}\/\d{4})/);
-    const qualquer = t.match(/\d{2}\/\d{2}\/\d{4}/);
-    const emissao = em ? iso(em[1]) : (qualquer ? iso(qualquer[0]) : ''), dm = t.match(/(?:validade|valida|valido|prazo)[^.]{0,40}?\b(\d{1,3})\s*(?:\([a-z ]+\)\s*)?dias/);
-    const dias = dm ? +dm[1] : null;
-    return {tipo, res, emissao, validade:val ? iso(val[1]) : (dias && emissao ? somarDias(emissao, dias) : ''), dias};
+    /* pessoa: primeiro CPF/CNPJ válido do texto (tolera espaços do OCR) e o nome pelos modelos conhecidos */
+    let doc = '', m; const docRe = /(\d{2}\.?\s?\d{3}\.?\s?\d{3}\s?\/\s?\d{4}\s?-\s?\d{2})|(\d{3}\.?\s?\d{3}\.?\s?\d{3}\s?-\s?\d{2})|\b(\d{14})\b|\b(\d{11})\b/g;
+    while ((m = docRe.exec(bruto))) { const dg = m[0].replace(/\D/g, ''); if (dg.length === 14 && validCNPJ(dg)) { doc = cnpjFmt(dg); break; } if (dg.length === 11 && validCPF(dg)) { doc = cpfFmt(dg); break; } }
+    const nm = (m = bruto.match(/Requerente\s*:\s*(.+?)\s+(?:Nome da M[aã]e|Data de Nascimento|CPF\s*:|CNPJ\s*:)/)) || (m = bruto.match(/contra:\s*(.+?)\s+(?:(?:OU|E)\s+)?(?:CPF|CNPJ)\b/)) || (m = bruto.match(/CPF\/CNPJ de:\s*(.+?)\s+\d{2,3}\./)) || (m = bruto.match(/\bNome:\s*(.+?)\s*(?:\(|CNPJ|CPF|Certid)/)) || (m = bruto.match(/em face de\s+(.+?),\s*inscrit/)) || (m = bruto.match(/rela[cç][aã]o ao nome de\s+(.+?)\s+CNP/));
+    const pessoa = doc || nm ? {nome:nm ? nm[1].trim() : '', doc} : null;
+    /* datas (a data de nascimento do requerente não conta) */
+    const td = t.replace(/data de nascimento\s*:?\s*\d{1,2}\/\d{1,2}\/\d{4}/g, ' ');
+    const iso = d => { const x = d.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return x ? dataISO(x[1], x[2], x[3]) : ''; };
+    const ext = (d, mes, a) => { const n = MESES[String(mes).toLowerCase()]; return n ? dataISO(d, n, a) : ''; };
+    let emissao = '';
+    if ((m = td.match(/(?:emitid[ao]|expedid[ao]|gerad[ao])[^.]{0,70}?\b(?:em|no dia|dia)\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{4})/))) emissao = iso(m[1]);
+    else if ((m = td.match(/(?:emitid[ao]|expedid[ao]|gerad[ao])[^.]{0,70}?\bem\s*(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})/))) emissao = ext(m[1], m[2], m[3]);
+    else if ((m = td.match(/publicad[ao] digitalmente em\s*(\d{1,2}\/\d{1,2}\/\d{4})/))) emissao = iso(m[1]);
+    else if ((m = td.match(/expedicao:?\s*(\d{1,2}\/\d{1,2}\/\d{4})/))) emissao = iso(m[1]);
+    else if ((m = td.match(/local e data:[^,]*,\s*(\d{1,2})\s+(?:de\s+)?([a-z]+)\s+(?:de\s+)?(\d{4})/))) emissao = ext(m[1], m[2], m[3]);
+    else if ((m = td.match(/,\s*(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})\s+\d{1,2}:\d{2}/))) emissao = ext(m[1], m[2], m[3]);
+    else if ((m = td.match(/\bem\s*(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})/))) emissao = ext(m[1], m[2], m[3]);
+    else if ((m = td.match(/\d{1,2}\/\d{1,2}\/\d{4}/))) emissao = iso(m[0]);
+    let validade = '';
+    if ((m = td.match(/(?:valida ate|valido ate)\s*:?\s*(?:o dia\s*)?(\d{1,2}\/\d{1,2}\/\d{4})/))) validade = iso(m[1]);
+    else if ((m = td.match(/(?:valida ate|valido ate)\s*:?\s*(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})/))) validade = ext(m[1], m[2], m[3]);
+    else if ((m = td.match(/validade(?: ate)?\s*:?\s*(?:o dia\s*)?(\d{1,2}\/\d{1,2}\/\d{4})/))) validade = iso(m[1]);
+    const tv = td.replace(/autenticidade[^.]{0,160}/g, ' '), dm = tv.match(/(?:validade|valida|valido|prazo)[^.]{0,40}?\b(\d{1,3})\s*(?:\([a-z ]+\)\s*)?dias/);
+    /* sem prazo no documento: 30 dias, como o cartório confere certidões judiciais, de protesto e a simplificada */
+    const PADRAO30 = {CIV:1, CRIM:1, CIVF:1, CRIMF:1, TJDFT:1, PROT:1, PROTDF:1, SIMPL:1}, dias = dm ? +dm[1] : (PADRAO30[tipo] ? 30 : null);
+    return {tipo, orgao, pessoa, res, emissao, validade:validade || (dias && emissao ? somarDias(emissao, dias) : ''), dias};
   }
   /* ---------- Quadros I e II da NBR 12721 a partir do PDF (posição das palavras) ----------
    * Os quadros trazem uma linha com os números das colunas (1..18 no QI e 19..38 no QII).
@@ -580,6 +609,40 @@ function auditoria(R, I, campos, meta){
     for (const k of Object.keys(cand)) { const c = cand[k].slice().sort((a, b) => a.prio - b.prio)[0]; out[k] = {valor:c.valor, docId:c.docId, busca:c.busca, regra:c.regra}; }
     return out;
   }
-  return {VERSAO:'1.5.3', lerFichaDocs:lerFichaDocs, textoIlegivel:textoIlegivel, nomeLimpo:nomeLimpo, categoriaPeloNome:categoriaPeloNome, categoriaPeloTexto:categoriaPeloTexto, onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
+  /* ---------- Ordem dos documentos pela lista do cartório (incorporação) ---------- */
+  /* devolve [posição, desempate]: requerimento, PMCMV, ART, alvará, declarações, certidões (CNDT, SEFAZ, cível, criminal, protesto, simplificada),
+   * contrato social, documentos pessoais, memorial, quadros, minuta, projeto, requerimento de patrimônio, termo de adesão */
+  function ordemDoc(nome, texto, cat){
+    const n = semAcento(nomeLimpo(nome)).toLowerCase().replace(/[-.]+/g, ' '), topo = semAcento(String(texto || '').slice(0, 300)).toLowerCase();
+    const a = n + ' ' + topo;
+    if (cat === 'MATRICULA') return [0, 0];
+    if (cat === 'CERTIDAO') {
+      const L = lerCertidao(nome, texto), R = {TRAB:60, TRT:62, SEFAZ:70, SEFAZDF:71, FED:72, MUN:73, CIV:80, CIVF:81, TJDFT:85, CRIM:90, CRIMF:91, PROT:100, PROTDF:101, SIMPL:110, ONUS:115, OUTRA:119};
+      const sub = ({'TJGO 1º grau':1, 'TJGO 2º grau':2})[L.orgao] || (L.orgao ? 3 : 4), pj = L.pessoa && L.pessoa.doc.length === 14 ? 1 : 0;
+      return [R[L.tipo] || 119, sub * 10 + pj];
+    }
+    if (/patrimonio|afetacao/.test(n) && /requerimento/.test(n)) return [180, 0];
+    if (/termo/.test(n) && /adesao/.test(n)) return [190, 0];
+    if (/pmcmv|minha casa/.test(n)) return [20, 0];
+    if (/requerimento/.test(n)) return [10, 0];
+    if (/\bart\b|\brrt\b|responsabilidade tecnica/.test(n)) return [30, 0];
+    if (/alvara/.test(n)) return [40, 0];
+    if (/carencia/.test(n)) return [51, 0];
+    if (/quota/.test(n)) return [52, 0];
+    if (/fracoes? ideais?|fracao ideal|discriminacao/.test(n)) return [53, 0];
+    if (/vagas? de garagem/.test(n)) return [54, 0];
+    if (cat === 'DECLARACAO') return [55, 0];
+    if (cat === 'CONTRATO') return [120, 0];
+    if (/\bcnpj\b/.test(n)) return [125, 0];
+    if (cat === 'DOCUMENTO_PESSOAL') return [130, 0];
+    if (cat === 'MEMORIAL') return [140, 0];
+    if (/quadro|nbr/.test(n)) return [150, 0];
+    if (/convencao|minuta/.test(n)) return [160, 0];
+    if (cat === 'PROJETO' || cat === 'PLANTA_ENGENHARIA') return [170, 0];
+    if (/\bart\b|responsabilidade tecnica/.test(a)) return [30, 1];
+    if (/alvara de construcao/.test(a)) return [40, 1];
+    return [500, 0];
+  }
+  return {VERSAO:'1.5.4', ordemDoc:ordemDoc, lerFichaDocs:lerFichaDocs, textoIlegivel:textoIlegivel, nomeLimpo:nomeLimpo, categoriaPeloNome:categoriaPeloNome, categoriaPeloTexto:categoriaPeloTexto, onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
 })();
 if (typeof module !== 'undefined') module.exports = Motor;

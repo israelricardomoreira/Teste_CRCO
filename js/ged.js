@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/ged.js: etapa 1 · documentos (GED): importar, agrupar, ordenar, ZIP e validação de assinatura */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.5.3';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.5.4';
 /* =====================================================================
    1. DOCUMENTOS (GED)
    ===================================================================== */
@@ -147,7 +147,29 @@ async function handleFiles(list, target = {}){
   if (pendDocs.length && S.gedMapa) { S.docs.forEach(d => { const g = S.gedMapa.find(x => x.order === d.order); if (g && !d.validade && g.validade) d.validade = g.validade; }); }
   renderGED(); markDirty();
   if (novas.length) toast(`${novas.length} página(s) importada(s)` + (docsAuto.length ? `, ${docsAuto.length} documento(s) agrupado(s) automaticamente.` : '.'));
-  if (docsAuto.length) { await classificarIlegiveis(docsAuto); preencherFichaDosDocs(true); }
+  if (docsAuto.length) {
+    await classificarIlegiveis(docsAuto); await identificarCertidoes(docsAuto); preencherFichaDosDocs(true);
+    /* caso novo (só matrícula e documentos recém-agrupados): põe na ordem da lista do cartório */
+    if (S.docs.every(d => d.category === 'MATRICULA' || docsAuto.includes(d))) ordenarPelaLista(S.docs);
+    renderGED(); markDirty();
+  }
+}
+/* certidões com texto ilegível: lê o topo por OCR para saber órgão, pessoa e data (tipo/emissor/validade) e refaz a linha da certidão */
+async function identificarCertidoes(docs){
+  const alvo = docs.filter(d => d.category === 'CERTIDAO' && (() => { const p = pageById(d.pageIds[0]); return p && p.raw && Motor.textoIlegivel(p.raw) && !p.ocr; })());
+  if (!alvo.length) return;
+  toast(alvo.length + ' certidão(ões) com texto ilegível no PDF: lendo por OCR para identificar órgão, pessoa e data.');
+  await ocrPages(alvo.map(d => pageById(d.pageIds[0])));
+  const ids = new Set(alvo.map(d => d.id)); S.certidoes = S.certidoes.filter(c => !ids.has(c.docId));
+  renderGED();
+  S.certidoes.forEach(c => { const d = S.docs.find(x => x.id === c.docId); if (d && !d.validade && c.validade) d.validade = c.validade; });
+}
+/* ordem da lista do cartório: matrícula, requerimento, PMCMV, ART, alvará, declarações, certidões, contrato, pessoais, memorial, quadros, minuta, projeto, patrimônio, termo */
+function ordenarPelaLista(docs){
+  const chave = d => Motor.ordemDoc(d.name, d.pageIds.map(pageById).filter(Boolean).map(pageText).join(' ').slice(0, 4000), d.category);
+  docs.map(d => ({d, k:chave(d)})).sort((a, b) => a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.d.name.localeCompare(b.d.name, undefined, {numeric:true}))
+    .forEach((x, i) => { x.d.order = i + 1; });
+  S.docs.sort((a, b) => a.order - b.order);
 }
 const autoAgruparLigado = () => { const c = $('chkAuto'); return c ? c.checked : true; };
 /* PDF com texto ilegível (fonte sem mapeamento): lê só a 1ª página por OCR e reclassifica quando a categoria era "padrão" (sem nenhuma pista) */
@@ -196,7 +218,7 @@ function renderDocs(){
     return `<article class="dcard${d.collapsed ? ' col' : ''}" data-doc="${d.id}">
       <div class="dtop" draggable="true"><button class="dtog" type="button" data-act="tog" aria-expanded="${!d.collapsed}" aria-label="Expandir ou recolher">▾</button>
         <input class="dord" type="number" min="1" value="${d.order}" data-act="ord" aria-label="Ordem no GED">
-        <span class="dcat">${esc(catNome(d.category))}</span><span class="dname">${esc(d.name)}</span><span class="count">${pgs.length} pág.${pgs.some(paginaConferida) ? ` · <span class="${pgs.every(paginaConferida) ? 'okt' : 'warnt'}">${pgs.filter(paginaConferida).length}/${pgs.length} conferidas</span>` : ''}</span>
+        <span class="dcat">${esc(catNome(d.category))}</span><span class="dname">${esc(d.name)}</span>${certInfoDoc(d)}<span class="count">${pgs.length} pág.${pgs.some(paginaConferida) ? ` · <span class="${pgs.every(paginaConferida) ? 'okt' : 'warnt'}">${pgs.filter(paginaConferida).length}/${pgs.length} conferidas</span>` : ''}</span>
         ${sigBtns}${venc ? '<span class="badge err">vencido</span>' : ''}
         <button class="btn sm" type="button" data-act="ver">Ver</button><button class="btn sm" type="button" data-act="anexar">Anexar arquivo</button><button class="btn sm danger" type="button" data-act="rm" aria-label="Desfazer documento">✕</button></div>
       <div class="dbody"><div class="dfields">
@@ -293,6 +315,7 @@ function validarAssinatura(fileKey){
 function bindGED(){
   /* GED */
   $('btnImport').onclick = () => $('fileIn').click();
+  if ($('btnOrdem')) $('btnOrdem').onclick = () => { ordenarPelaLista(S.docs); renderGED(); markDirty(); toast('Documentos na ordem da lista do cartório.'); };
   if ($('chkAuto')) { $('chkAuto').checked = lsGet('qcrco_autogrupo', true) !== false; $('chkAuto').onchange = () => lsSet('qcrco_autogrupo', $('chkAuto').checked); }
   $('fileIn').onchange = e => { handleFiles(e.target.files, {}); e.target.value = ''; };
   $('btnGroup').onclick = () => openGroup([...sel]);

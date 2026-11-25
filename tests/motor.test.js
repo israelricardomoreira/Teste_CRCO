@@ -283,3 +283,72 @@ test('lerMatricula: adquirente na forma "ao comprador NOME, ..." (atos antigos) 
   assert.equal(R.titular.nome, 'BELTRANA DE TAL');
   assert.equal(R.titular.ato, 'R-2');
 });
+
+/* ---- Certidões: órgão, pessoa, emissão e validade nos formatos reais (texto neutro, CPF/CNPJ de teste) ---- */
+const CPF_T = '111.444.777-35', CNPJ_T = '11.222.333/0001-81';
+test('lerCertidao: TJGO 1º e 2º grau (e a data de nascimento não vira emissão)', () => {
+  const g1 = M.lerCertidao('EMPRESA CIVEL 1', 'Estado de Goiás Poder Judiciário TODAS AS COMARCAS CERTIDÃO NEGATIVA - CÍVEL CERTIFICA a requerimento da parte interessada ... Documento Publicado Digitalmente em 17/11/2026 - 15:21:35 Localizar pelo código: 102788734564, no endereço: https://projudi.tjgo.jus.br/CertidaoPublica PRAZO DE VALIDADE: 30 DIAS');
+  assert.equal(g1.tipo, 'CIV'); assert.equal(g1.orgao, 'TJGO 1º grau'); assert.equal(g1.emissao, '2026-11-17'); assert.equal(g1.validade, '2026-12-17');
+  const g2 = M.lerCertidao('SOCIO CRIMINAL 2', 'PODER JUDICIÁRIO TRIBUNAL DE JUSTIÇA DO ESTADO DE GOIÁS CERTIDÃO NEGATIVA DE AÇÕES CRIMINAIS Nº : 1 CERTIFICO que revendo os registros eletrônicos no Sistema de Segundo Grau (SSG) do Tribunal de Justiça do Estado de Goiás, NADA CONSTA em tramitação contra: Requerente : FULANO DE TAL Nome da Mãe : BELTRANA Data de Nascimento : 04/01/1998 CPF : ' + CPF_T + ' ESTA CERTIDÃO ABRANGE');
+  assert.equal(g2.tipo, 'CRIM'); assert.equal(g2.orgao, 'TJGO 2º grau');
+  assert.deepEqual(g2.pessoa, {nome: 'FULANO DE TAL', doc: CPF_T});
+  assert.equal(g2.emissao, '');     /* sem data de emissão no texto: vazio, nunca 1998 */
+});
+test('lerCertidao: Justiça Federal, TJDFT, CNDT e TRT', () => {
+  const f = M.lerCertidao('SOCIO CRIMINAL 1G', 'PODER JUDICIÁRIO JUSTIÇA FEDERAL TRIBUNAL REGIONAL FEDERAL DA 1º REGIÃO CERTIDÃO JUDICIAL CRIMINAL NEGATIVA 8292/2026 CERTIFICAMOS que NÃO CONSTAM PROCESSOS de classes CRIMINAIS contra: FULANO DE TAL OU CPF n. ' + CPF_T + ' Certidão emitida em 16/11/2026, às 14:22:05 (data e hora de Brasília)');
+  assert.equal(f.tipo, 'CRIMF'); assert.equal(f.orgao, 'Justiça Federal (TRF1)'); assert.equal(f.pessoa.nome, 'FULANO DE TAL'); assert.equal(f.pessoa.doc, CPF_T); assert.equal(f.emissao, '2026-11-16');
+  const d = M.lerCertidao('certidao', 'TRIBUNAL DE JUSTIÇA DO DISTRITO FEDERAL E DOS TERRITÓRIOS CERTIDÃO NEGATIVA DE DISTRIBUIÇÃO (ESPECIAL) NADA CONSTA contra o nome por extenso e CPF/CNPJ de: EXEMPLO CONSTRUTORA LTDA ' + CNPJ_T + ' OBSERVAÇÕES: a) Os dados ... Emitida gratuitamente pela internet em: 25/11/2026 Selo digital *** VÁLIDA POR 30 (TRINTA) DIAS ***');
+  assert.equal(d.tipo, 'TJDFT'); assert.equal(d.pessoa.nome, 'EXEMPLO CONSTRUTORA LTDA'); assert.equal(d.pessoa.doc, CNPJ_T); assert.equal(d.emissao, '2026-11-25'); assert.equal(d.validade, '2026-12-25');
+  const c = M.lerCertidao('EMPRESA TRABALHISTA', 'CERTIDÃO NEGATIVA DE DÉBITOS TRABALHISTAS Nome: EXEMPLO CONSTRUTORA LTDA (MATRIZ E FILIAIS) CNPJ: ' + CNPJ_T + ' Certidão nº: 9477 Expedição: 09/11/2026, às 16:46:16 Validade: 08/05/2027 - 180 (cento e oitenta) dias, contados da data de sua expedição.');
+  assert.equal(c.tipo, 'TRAB'); assert.equal(c.pessoa.nome, 'EXEMPLO CONSTRUTORA LTDA'); assert.equal(c.emissao, '2026-11-09'); assert.equal(c.validade, '2027-05-08');
+  const t = M.lerCertidao('EMPRESA TRABALHISTA 1', 'Certifica-se, com parâmetro no sistema informatizado da 18ª Região da Justiça do Trabalho, que, até a presente data, NÃO CONSTA AÇÃO TRABALHISTA, em nome de ... Esta certidão NÃO GERA os efeitos da certidão Negativa de Débitos Trabalhistas');
+  assert.equal(t.tipo, 'TRT');
+});
+test('lerCertidao: SEFAZ-GO com data por extenso sem "de", SEFAZ-DF, PGFN, protesto DF e Junta', () => {
+  const g = M.lerCertidao('EMPRESA SEFAZ GO', 'ESTADO DE GOIAS SECRETARIA DE ESTADO DA ECONOMIA CERTIDAO DE DEBITO INSCRITO EM DIVIDA ATIVA - NEGATIVA IDENTIFICAÇÃO: NOME: CNPJ ' + CNPJ_T + ' DESPACHO: NAO CONSTA DEBITO Certidao VALIDA POR 120 DIAS SGTI-SEFAZ: LOCAL E DATA: GOIANIA, 9 NOVEMBRO DE 2026 HORA: 16:50:12');
+  assert.equal(g.tipo, 'SEFAZ'); assert.equal(g.emissao, '2026-11-09'); assert.equal(g.validade, '2027-03-09'); assert.equal(g.pessoa.doc, CNPJ_T);
+  const d = M.lerCertidao('EMPRESA SEFAZ DF', 'GOVERNO DO DISTRITO FEDERAL SECRETARIA DE ESTADO DE ECONOMIA CERTIDÃO NEGATIVA DE DÉBITOS Válida até 07 de fevereiro de 2027. * Certidão emitida via internet em 09/11/2026 às 16:47:55');
+  assert.equal(d.tipo, 'SEFAZDF'); assert.equal(d.emissao, '2026-11-09'); assert.equal(d.validade, '2027-02-07');
+  const p = M.lerCertidao('EMPRESA PGFN', 'MINISTÉRIO DA FAZENDA Procuradoria-Geral da Fazenda Nacional CERTIDÃO NEGATIVA DE DÉBITOS RELATIVOS AOS TRIBUTOS FEDERAIS Emitida às 16:03:09 do dia 09/11/2026 <hora e data de Brasília>. Válida até 08/05/2027.');
+  assert.equal(p.tipo, 'FED'); assert.equal(p.emissao, '2026-11-09'); assert.equal(p.validade, '2027-05-08');
+  const pr = M.lerCertidao('EMPRESA PROTESTO DF', 'CENTRAL DE CERTIDÕES DE PROTESTO DO DF CERTIDÃO UNIFICADA DE PROTESTO a requerimento de EXEMPLO LTDA CNPJ: ' + CNPJ_T + ' NADA CONSTA Emitida às 09:09:49 em 18/11/2026 (hora e data de Brasília).');
+  assert.equal(pr.tipo, 'PROTDF'); assert.equal(pr.emissao, '2026-11-18');
+  assert.equal(M.lerCertidao('EMPRESA SIMPLIFICADA', 'Certidão Simplificada Digital emitida pela JUNTA COMERCIAL, INDUSTRIAL E SERVIÇOS DO DISTRITO FEDERAL').tipo, 'SIMPL');
+});
+test('ordemDoc: a lista do cartório (requerimento, PMCMV, ART, alvará, declarações, certidões, contrato, quadros, minuta, projeto, patrimônio, termo)', () => {
+  const itens = [
+    ['TERMO DE ADESAO AFETACAO', 'OUTROS'], ['REQUERIMENTO PATRIMONIO DE AFETACAO', 'OUTROS'], ['PROJETO APROVADO', 'PROJETO'], ['CONVENCAO DE CONDOMINIO', 'OUTROS'],
+    ['QUADRO NBR', 'OUTROS'], ['MEMORIAL DESCRITIVO', 'MEMORIAL'], ['CNH', 'DOCUMENTO_PESSOAL'], ['CONTRATO SOCIAL', 'CONTRATO'], ['EMPRESA SIMPLIFICADA', 'CERTIDAO'],
+    ['EMPRESA PROTESTO DF', 'CERTIDAO'], ['EMPRESA CRIMINAL 1', 'CERTIDAO'], ['EMPRESA CIVEL 1', 'CERTIDAO'], ['EMPRESA SEFAZ GO', 'CERTIDAO'],
+    ['Declaracao de Vagas de Garagem', 'DECLARACAO'], ['Discriminacao das Fracoes Ideais', 'DECLARACAO'], ['Declaracao de Quota parte', 'DECLARACAO'], ['Declaracao Prazo de Carencia', 'DECLARACAO'],
+    ['ALVARA', 'OUTROS'], ['ART', 'OUTROS'], ['REQUERIMENTO PARA REDUCAO PMCMV', 'DECLARACAO'], ['REQUERIMENTO', 'OUTROS'], ['Matrícula 1.234', 'MATRICULA']
+  ];
+  const ord = itens.map(([n, c]) => ({n, k: M.ordemDoc(n, '', c)})).sort((a, b) => a.k[0] - b.k[0] || a.k[1] - b.k[1]).map(x => x.n);
+  assert.deepEqual(ord, ['Matrícula 1.234', 'REQUERIMENTO', 'REQUERIMENTO PARA REDUCAO PMCMV', 'ART', 'ALVARA', 'Declaracao Prazo de Carencia', 'Declaracao de Quota parte', 'Discriminacao das Fracoes Ideais',
+    'Declaracao de Vagas de Garagem', 'EMPRESA SEFAZ GO', 'EMPRESA CIVEL 1', 'EMPRESA CRIMINAL 1', 'EMPRESA PROTESTO DF', 'EMPRESA SIMPLIFICADA', 'CONTRATO SOCIAL', 'CNH',
+    'MEMORIAL DESCRITIVO', 'QUADRO NBR', 'CONVENCAO DE CONDOMINIO', 'PROJETO APROVADO', 'REQUERIMENTO PATRIMONIO DE AFETACAO', 'TERMO DE ADESAO AFETACAO']);
+});
+test('ordemDoc: na mesma certidão a empresa (CNPJ) vem antes do sócio (CPF)', () => {
+  const pj = M.ordemDoc('A', 'Estado de Goiás Poder Judiciário TODAS AS COMARCAS CERTIDÃO NEGATIVA - CRIMINAL contra: Requerente : EXEMPLO LTDA CNPJ : 11.222.333/0001-81 Nome da Mãe', 'CERTIDAO');
+  const pf = M.ordemDoc('B', 'Estado de Goiás Poder Judiciário TODAS AS COMARCAS CERTIDÃO NEGATIVA - CRIMINAL contra: Requerente : FULANO DE TAL Nome da Mãe : X Data de Nascimento : 04/01/1998 CPF : 111.444.777-35', 'CERTIDAO');
+  assert.equal(pj[0], pf[0]);
+  assert.ok(pj[1] < pf[1]);
+});
+test('lerCertidao: TRF 1º grau x TRF/turmas, TRT por instância e CNPJ sem pontuação, simplificada e protesto', () => {
+  const base = 'PODER JUDICIÁRIO JUSTIÇA FEDERAL TRIBUNAL REGIONAL FEDERAL DA 1º REGIÃO CERTIDÃO JUDICIAL CÍVEL 1/2026 CERTIFICAMOS que NÃO CONSTAM PROCESSOS de classes CÍVEIS em tramitação contra: EXEMPLO LTDA OU CNPJ n. ' + CNPJ_T + ' Certidão emitida em 16/11/2026, às 14:17:07 (data e hora de Brasília), ';
+  const g1 = M.lerCertidao('A', base + 'abrange a Justiça Federal de 1º Grau na(s) seguinte(s) unidade(s): Goiás. Observações: a) A autenticidade desta certidão poderá ser verificada, no prazo de 90 dias');
+  const g2 = M.lerCertidao('B', base + 'abrange o Tribunal Regional Federal da 1º Região e os processos sob a jurisdição do TRF6');
+  assert.equal(g1.orgao, 'Justiça Federal 1º grau (TRF1)'); assert.equal(g2.orgao, 'TRF1 (2º grau e turmas recursais)');
+  assert.equal(g1.validade, '2026-12-16');     /* os 90 dias são da autenticidade; vale o padrão de 30 */
+  const t2 = M.lerCertidao('C', 'Certifica-se, com parâmetro no sistema informatizado da 18ª Região da Justiça do Trabalho, que, até a presente data, NÃO CONSTA AÇÃO TRABALHISTA, em andamento na 2ª Instância, em face de EXEMPLO CONSTRUTORA LTDA, inscrito(a) no CNPJ sob o nº 11222333000181 . NÃO GERA os efeitos da certidão Negativa de Débitos Trabalhistas');
+  assert.equal(t2.tipo, 'TRT'); assert.equal(t2.orgao, 'TRT 18ª Região · 2ª instância (não é a CNDT)');
+  assert.deepEqual(t2.pessoa, {nome: 'EXEMPLO CONSTRUTORA LTDA', doc: CNPJ_T});
+  const s = M.lerCertidao('D', 'Certidão Simplificada Digital emitida pela JUNTA COMERCIAL Último Arquivamento: 05/08/2025 NADA MAIS# Brasília, 18 de Novembro de 2026 09:19');
+  assert.equal(s.tipo, 'SIMPL'); assert.equal(s.emissao, '2026-11-18'); assert.equal(s.validade, '2026-12-18');
+  const p = M.lerCertidao('E', 'CERTIDÃO UNIFICADA DE PROTESTO DO DF a requerimento de EXEMPLO LTDA, nos 5 anos anteriores a 17/11/2026, em relação ao nome de EXEMPLO LTDA CNP: ' + CNPJ_T + ' NADA CONSTA Emitida às 09:09:49 em 18/11/2026 (hora e data de Brasília).');
+  assert.equal(p.tipo, 'PROTDF'); assert.equal(p.emissao, '2026-11-18'); assert.equal(p.pessoa.doc, CNPJ_T);
+});
+test('lerCertidao: protesto do DF com selo do TJDFT impresso continua sendo protesto', () => {
+  const r = M.lerCertidao('EMPRESA PROTESTO DF', 'CERTIDÃO UNIFICADA DE PROTESTO Distrito Federal NADA CONSTA Selo Digital: TJDFT20260410006596LTLX. Para consultar o selo, acesse www.tjdft.jus.br Emitida às 09:09:49 em 18/11/2026');
+  assert.equal(r.tipo, 'PROTDF'); assert.equal(r.emissao, '2026-11-18');
+});
