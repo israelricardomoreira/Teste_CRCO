@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/ged.js: etapa 1 · documentos (GED): importar, agrupar, ordenar, ZIP e validação de assinatura */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.5.1';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.5.2';
 /* =====================================================================
    1. DOCUMENTOS (GED)
    ===================================================================== */
@@ -147,7 +147,7 @@ async function handleFiles(list, target = {}){
   if (pendDocs.length && S.gedMapa) { S.docs.forEach(d => { const g = S.gedMapa.find(x => x.order === d.order); if (g && !d.validade && g.validade) d.validade = g.validade; }); }
   renderGED(); markDirty();
   if (novas.length) toast(`${novas.length} página(s) importada(s)` + (docsAuto.length ? `, ${docsAuto.length} documento(s) agrupado(s) automaticamente.` : '.'));
-  if (docsAuto.length) await classificarIlegiveis(docsAuto);
+  if (docsAuto.length) { await classificarIlegiveis(docsAuto); preencherFichaDosDocs(true); }
 }
 const autoAgruparLigado = () => { const c = $('chkAuto'); return c ? c.checked : true; };
 /* PDF com texto ilegível (fonte sem mapeamento): lê só a 1ª página por OCR e reclassifica quando a categoria era "padrão" (sem nenhuma pista) */

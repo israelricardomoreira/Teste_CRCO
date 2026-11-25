@@ -461,6 +461,17 @@ function auditoria(R, I, campos, meta){
     const mes = t.match(/Custo Unit[aá]rio B[aá]sico para o M[eê]s de\s+([a-zç]+)\s+de\s+(\d{4})/i);
     if (mes) { const n = MESES[mes[1].toLowerCase()]; if (n) o.cubMes = `${mes[2]}-${String(n).padStart(2, '0')}`; }
     const cub = t.match(/M[eê]s de\s+[a-zç]+\s+de\s+\d{4}.{0,40}?(\d{1,3}(?:\.\d{3})*,\d{2})/i); if (cub) o.cub = cub[1];
+    if (!o.cubMes || !o.cub) {
+      const m2 = t.match(/Custo Unit[aá]rio B[aá]sico para o m[eê]s de:?\s*(?:([a-zç]+)\s+de\s+(\d{4})|([a-zç]{3})\s*\/\s*(\d{2,4})).{0,40}?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+      if (m2) {
+        const AB = {jan:1, fev:2, mar:3, abr:4, mai:5, jun:6, jul:7, ago:8, set:9, out:10, nov:11, dez:12};
+        const n = m2[1] ? MESES[m2[1].toLowerCase()] : AB[m2[3].toLowerCase()], ano = m2[2] || (m2[4].length === 2 ? '20' + m2[4] : m2[4]);
+        if (n && !o.cubMes) o.cubMes = ano + '-' + String(n).padStart(2, '0');
+        if (!o.cub) o.cub = m2[5];
+      }
+    }
+    const padH = t.match(/\bR\s?-?\s?(1|8|16)\s?-\s?(BAIXO|NORMAL|ALTO)\b/i);
+    if (!o.padrao && padH) o.padrao = 'R' + padH[1] + '-' + padH[2][0].toUpperCase();
     const glob = t.match(/13\.?\s*Custo Global da Constru[cç][aã]o\s*R\$\s*([\d.]+,\d{2})/i); if (glob) o.v13rt = glob[1];
     const pad = t.match(/\b(R\s?-?\s?(?:1|8|16)\s?-?\s?[BNA]|PP\s?-?\s?4\s?-?\s?[BN]|PIS|RP1Q|CAL\s?-?\s?8\s?-?\s?[NA]|CSL\s?-?\s?(?:8|16)\s?-?\s?[NA]|GI)\b/i);
     const padTxt = t.match(/(Baixo|Normal|Alto)\s+(R-?\s?(?:1|8|16)|PP-?\s?4)/i);
@@ -514,6 +525,60 @@ function auditoria(R, I, campos, meta){
     for (const [re, c, j] of r) if (re.test(j ? t.slice(0, j) : t)) return c;
     return null;
   }
-  return {VERSAO:'1.5.1', textoIlegivel:textoIlegivel, nomeLimpo:nomeLimpo, categoriaPeloNome:categoriaPeloNome, categoriaPeloTexto:categoriaPeloTexto, onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
+  /* ---------- Ficha da incorporação lida dos documentos (requerimento, alvará, ART): sugestões para o usuário conferir ---------- */
+  const dataISO = (d, m, a) => a + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  const brISO = x => { const m = String(x || '').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m ? dataISO(m[1], m[2], m[3]) : ''; };
+  const cnpjFmt = d => d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  /* tira do começo do nome as palavras do cabeçalho ("... FUTURA MINUTA DE CONVENÇÃO NOME") */
+  function nomeAposCabecalho(n){
+    const w = String(n || '').trim().split(/\s+/); let ini = 0;
+    w.forEach((x, i) => { if (/^(REGISTRO|INCORPORA[CÇ][AÃ]O|CONVEN[CÇ][AÃ]O|MINUTA|FUTURA|REQUERIMENTO|OFICIAL|CART[OÓ]RIO|REF\.?:?)$/i.test(x)) ini = i + 1; });
+    return w.slice(ini).join(' ');
+  }
+  /* docs: [{id, nome, texto}] (texto de todas as páginas do documento). Devolve {campo: {valor, docId, busca, regra}} */
+  function lerFichaDocs(docs){
+    const T = x => String(x || '').replace(/\s+/g, ' ').trim(), cand = {};
+    const add = (k, valor, prio, d, busca, regra) => { valor = T(valor); if (valor) (cand[k] = cand[k] || []).push({prio, valor, docId:d.id, busca:T(busca) || valor, regra}); };
+    for (const d of docs) {
+      const t = T(d.texto); if (!t) continue;
+      const up = semAcento(t).toUpperCase(), topo = up.slice(0, 700);
+      const alvara = /ALVARA DE CONSTRUCAO\s*N/.test(topo);
+      const art = !alvara && /RESPONSABILIDADE TECNICA/.test(topo) && /\bART\b|\bRRT\b/.test(topo);
+      const req = !alvara && !art && /REGISTRO DE INCORPORACAO/.test(topo) && /REQUER/.test(up) && !/PATRIMONIO DE AFETACAO/.test(topo);
+      let m;
+      if (req) {
+        if ((m = t.match(/CNPJ[^\d]{0,12}(\d{2}\.?\d{3}\.?\d{3}\s?\/\s?\d{4}\s?-\s?\d{2})/i)) && validCNPJ(m[1].replace(/\D/g, ''))) add('incCnpj', cnpjFmt(m[1].replace(/\D/g, '')), 1, d, m[1], 'requerimento.cnpj');
+        if ((m = t.match(/([A-ZÀ-Ú][A-ZÀ-Ú0-9 .&'\-]{3,110}?)\s*,?\s*CNPJ/))) add('incNome', nomeAposCabecalho(m[1]), 1, d, nomeAposCabecalho(m[1]), 'requerimento.nome');
+        else if ((m = t.match(/([A-ZÀ-Ú][A-ZÀ-Ú0-9 .&'\-]{3,110}?)\s+com sede\b/))) add('incNome', nomeAposCabecalho(m[1]), 1, d, nomeAposCabecalho(m[1]), 'requerimento.nome');
+        if ((m = t.match(/com sede\s+(?:e foro\s+)?(?:na|no|em|à|a|nesta)\s+(.{8,160}?)(?=\s*,?\s*(?:neste ato|atrav[eé]s de|inscrit[ao]|representad[ao]|por seu|CNPJ|doravante|brasileir))/i))) add('incSede', m[1].replace(/[,\s]+$/, ''), 1, d, m[1], 'requerimento.sede');
+        if ((m = t.match(/(?:denomina[cç][aã]o de|denominad[oa])\s*[“"]\s*([^”"]{3,100}?)\s*[”"]/i))) add('empNome', m[1], 1, d, m[1], 'requerimento.empreendimento');
+        else if ((m = t.match(/incorporador[ao]?\s+d[oa]\s+(.{4,100}?)\s*,?\s+que\s+(?:ser[aá]|est[aá]|foi)/i))) add('empNome', m[1], 2, d, m[1], 'requerimento.empreendimento');
+        if ((m = t.match(/R\$\s*([\d.]+,\d{2})\s*\([^)]*\)\s*,?\s*custo global/i)) || (m = t.match(/valor de\s+R\$\s*([\d.]+,\d{2})/i))) add('empValor', m[1], 1, d, 'R$ ' + m[1], 'requerimento.valor');
+        const dt = ultimaDataExtenso(t); if (dt) add('reqData', dt, 1, d, '', 'requerimento.data');
+      }
+      if (alvara) {
+        if ((m = t.match(/ALVAR[AÁ] DE CONSTRU[CÇ][AÃ]O\s*N[º°o.]*\s*(\d+\s*\/\s*\d{4})/i))) add('alvaraNum', m[1].replace(/\s/g, ''), 1, d, m[1], 'alvara.numero');
+        if ((m = t.match(/projeto\s+aprovado\s+em\s+(\d{1,2}\/\d{1,2}\/\d{4})/i))) add('aprovData', brISO(m[1]), 1, d, m[1], 'alvara.aprovacao');
+        const dt = ultimaDataExtenso(t) || ((m = t.match(/Data:\s*(\d{2}\/\d{2}\/\d{4})\s+\d{2}:\d{2}/)) ? brISO(m[1]) : '');
+        if (dt) add('alvaraData', dt, 1, d, '', 'alvara.data');
+        if ((m = t.match(/[ÁA]rea total da obra:\s*([\d.]+,\d{2})\s*m/i))) add('alvaraArea', m[1], 1, d, m[1], 'alvara.area');
+        if ((m = t.match(/RESPONS[AÁ]VEL T[EÉ]CNICO:\s*NOME:\s*(.+?)\s+(?:CREA|CAU)\b/i))) add('rtNome', m[1], 1, d, m[1], 'alvara.responsavel');
+        if ((m = t.match(/RESPONS[AÁ]VEL T[EÉ]CNICO:\s*NOME:.+?(?:CREA|CAU)\s*\(\s*(?:CAU|CREA)\s*\)\s*n[º°o.]*:?\s*([A-Z0-9][A-Z0-9\/\-]*?)\s*\/\s*ART/i))) { add('rtRegistro', m[1], 2, d, m[1], 'alvara.registro'); if (/\d\/?D-[A-Z]{2}$/i.test(m[1])) add('rtConselho', 'CREA', 3, d, m[1], 'alvara.conselho'); }
+        if ((m = t.match(/ART\s*\(RRT\)\s*OBRA:\s*([A-Z0-9][A-Z0-9.\/\-]{5,})/i))) add('rtArt', m[1], 1, d, m[1], 'alvara.art');
+        if ((m = t.match(/PROPRIET[AÁ]RIO:\s*NOME:\s*(.+?)\s+CPF\/CNPJ:\s*(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/i))) { add('incNome', m[1], 2, d, m[1], 'alvara.proprietario'); add('incCnpj', m[2], 2, d, m[2], 'alvara.proprietario'); }
+      }
+      if (art) {
+        if ((m = t.match(/Registrad[ao]\s*em[\s\S]{0,200}?(\d{2}\/\d{2}\/\d{4})/i))) add('rtArtData', brISO(m[1]), 1, d, m[1], 'art.registro');
+        if (/CONSELHO REGIONAL DE ENGENHARIA|\bCREA\b/.test(up)) add('rtConselho', 'CREA', 1, d, 'CREA', 'art.conselho');
+        else if (/ARQUITETURA E URBANISMO|\bCAU\b/.test(up)) add('rtConselho', 'CAU', 1, d, 'CAU', 'art.conselho');
+        if ((m = t.match(/T[ií]tulo profissional:[\s\S]{0,80}?Registro:\s*([A-Z0-9][A-Z0-9\/\-]+)/i))) add('rtRegistro', m[1], 1, d, m[1], 'art.registro');
+        if ((m = t.match(/\b(10\d{11})\b/))) add('rtArt', m[1], 3, d, m[1], 'art.numero');
+      }
+    }
+    const out = {};
+    for (const k of Object.keys(cand)) { const c = cand[k].slice().sort((a, b) => a.prio - b.prio)[0]; out[k] = {valor:c.valor, docId:c.docId, busca:c.busca, regra:c.regra}; }
+    return out;
+  }
+  return {VERSAO:'1.5.2', lerFichaDocs:lerFichaDocs, textoIlegivel:textoIlegivel, nomeLimpo:nomeLimpo, categoriaPeloNome:categoriaPeloNome, categoriaPeloTexto:categoriaPeloTexto, onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
 })();
 if (typeof module !== 'undefined') module.exports = Motor;

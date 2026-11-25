@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/visualizador.js: lupa, régua, contraste, texto/OCR e exigência rápida */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/visualizador.js'] = '1.5.1';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/visualizador.js'] = '1.5.2';
 /* ---------- OCR (Tesseract.js, carregado sob demanda) ---------- */
 let ocrWorker = null;
 async function ensureOCR(){
@@ -35,6 +35,16 @@ async function ocrRegiao(p, R){
   const w = await ensureOCR(), r = await w.recognize(c.toDataURL('image/png'));
   return (r.data && r.data.text || '').replace(/[ \t]+/g, ' ').trim();
 }
+/* páginas pequenas (a prévia tem ~830 px) erram dígito no OCR; amplia para ~2000 px antes de ler */
+async function ampliarParaOCR(src){
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+    if (img.naturalWidth >= 1600) return src;
+    const f = 2000 / img.naturalWidth, c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * f); c.height = Math.round(img.naturalHeight * f);
+    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, c.width, c.height);
+    const out = c.toDataURL('image/png'); c.width = c.height = 0; return out;
+  } catch (e) { return src; }
+}
 async function ocrPages(list){
   try {
     busy(true, 'Preparando OCR (a primeira vez demora)…', 3);
@@ -42,10 +52,11 @@ async function ocrPages(list){
     for (let i = 0; i < list.length; i++) {
       const p = list[i]; busy(true, `OCR: página ${i + 1} de ${list.length}`, 5 + Math.round(i / list.length * 92));
       const src = p.rotation ? (await toJpeg(p.dataUrl, p.rotation)).data : p.dataUrl;
-      const r = await w.recognize(src); p.ocr = (r.data && r.data.text || '').trim(); p.ocrConf = r.data && r.data.confidence != null ? Math.round(r.data.confidence) : null;
-      p.words = await palavrasOCR(r.data, src, p.rotation || 0);
+      const src2 = await ampliarParaOCR(src); const r = await w.recognize(src2); p.ocr = (r.data && r.data.text || '').trim(); p.ocrConf = r.data && r.data.confidence != null ? Math.round(r.data.confidence) : null;
+      p.words = await palavrasOCR(r.data, src2, p.rotation || 0);
     }
     toast('OCR concluído. Confira o texto: leitura de máquina pode errar.');
+    if (typeof preencherFichaDosDocs === 'function') preencherFichaDosDocs(true);
   } catch (e) { console.error(e); toast('OCR indisponível: ' + e.message, 'err'); }
   finally { busy(false); }
 }

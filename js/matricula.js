@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/matricula.js: leitura automática da matrícula (preenche a ficha e mostra titular, atos e ônus) */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.5.1';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.5.2';
 
 /* Texto da matrícula: documento MATRICULA do GED (ou o que está aberto na Conferência), senão o usuário cola */
 function matTextoDoGED(){
@@ -68,8 +68,36 @@ function matSituacao(a){
   if (a.adquirente) return `<span class="badge warn">transmissão → ${esc(a.adquirente)}</span>`;
   return '';
 }
+/* Ficha da incorporação lida dos documentos (requerimento, alvará, ART): o programa sugere e o usuário confere.
+ * Só preenche campo vazio, ou que o próprio programa preencheu antes e ninguém confirmou (nunca sobrescreve o que a pessoa digitou). */
+function preencherFichaDosDocs(silencioso){
+  const docs = S.docs.filter(d => d.category !== 'MATRICULA').map(d => ({id:d.id, nome:d.name, texto:d.pageIds.map(id => pageText(pageById(id))).join('\n')}));
+  const R = Motor.lerFichaDocs(docs), chaves = Object.keys(R);
+  if (!chaves.length) { if (!silencioso) toast('Não achei requerimento, alvará ou ART com texto legível. Se estiverem escaneados, rode o OCR e tente de novo.', 'err'); return 0; }
+  /* requerimento de incorporação encontrado e tipo ainda "Geral": marca Incorporação */
+  if (S.meta.tipoAto === 'GERAL' && chaves.some(k => /^requerimento\./.test(R[k].regra))) {
+    S.meta.tipoAto = 'INCORPORACAO'; const sel = $('mTipo');
+    if (sel) { sel.value = 'INCORPORACAO'; sel.dispatchEvent(new Event('input', {bubbles:true})); sel.dispatchEvent(new Event('change', {bubbles:true})); }
+  }
+  const prev = S.autoFicha || (S.autoFicha = {}), feitos = [];
+  chaves.forEach(k => {
+    const s = R[k], atual = String(S.campos[k] || '').trim();
+    if (atual === s.valor || (atual && !(prev[k] === atual && !S.ok['c:' + k]))) return;
+    const d = S.docs.find(x => x.id === s.docId), pgs = d.pageIds.map(pageById).filter(Boolean), onde = localizarNasPaginas(pgs, s.busca);
+    const pid = onde ? onde.pageId : (pgs[0] ? pgs[0].id : '');
+    registrarSugestao('c:' + k, s.valor, {regra:'docs.' + s.regra, fonte:fonteDe(pid), contexto:trecho(pgs.map(pageText).join(' '), s.busca), naoAplicado:false});
+    S.campos[k] = s.valor; S.src['c:' + k] = {pageId:pid, label:d.name, reg:onde ? onde.reg : null}; S.ok['c:' + k] = false; prev[k] = s.valor; feitos.push(k);
+  });
+  if (feitos.length) { markDirty(); renderConfForm(); toast('Ficha preenchida pelos documentos: ' + feitos.length + ' campo(s). Confira e marque "conferido".'); }
+  else if (!silencioso) toast('A ficha já está com tudo o que os documentos trazem.');
+  return feitos.length;
+}
 /* Cartão no topo da ficha de conferência */
 function matResumoHTML(){
+  const btnDocs = S.meta.tipoAto === 'INCORPORACAO' ? '<div class="row" style="margin-bottom:8px"><button class="btn sm" type="button" data-mat="docs">📑 Preencher a ficha dos documentos</button><span class="muted" style="font-size:12px">Lê requerimento, alvará e ART (ART escaneada: rode o OCR antes).</span></div>' : '';
+  return btnDocs + matResumoHTML2();
+}
+function matResumoHTML2(){
   if (!S.mat || !S.mat.R) return `<div class="row" style="margin-bottom:12px"><button class="btn" type="button" data-mat="ler">📄 Ler matrícula e preencher a ficha</button><span class="muted" style="font-size:12px">Usa o documento MATRICULA do GED ou o texto colado.</span></div>`;
   const R = S.mat.R, T = R.titular, cruz = Motor.cruzarMatricula(R, S.campos, S.partes);
   const dif = [['matricula', R.numero], ['cep', R.cep], ['regAnterior', R.ultimoAto]]
@@ -140,6 +168,7 @@ function bindMatricula(){
   $('confForm').addEventListener('click', e => {
     const b = e.target.closest('[data-mat]'); if (!b) return;
     if (b.dataset.mat === 'ler') abrirLeituraMatricula();
+    if (b.dataset.mat === 'docs') preencherFichaDosDocs(false);
     if (b.dataset.mat === 'parte' && S.mat && S.mat.R.titular) {
       const T = S.mat.R.titular;
       const np = {id:uid(), papel:S.meta.tipoAto === 'INCORPORACAO' ? 'Incorporador' : 'Transmitente', nome:T.nomeAtual || T.nome, doc:T.doc || ''}; S.partes.push(np);

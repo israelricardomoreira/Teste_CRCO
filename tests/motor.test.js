@@ -225,3 +225,52 @@ test('categoriaPeloTexto: matrícula só se for o cabeçalho; certidão e fraç�
   assert.equal(c(''), null);
   assert.equal(c('texto sem pista nenhuma aqui'), null);
 });
+
+/* ---- Ficha da incorporação lida dos documentos (texto neutro, modelado na estrutura dos documentos reais) ---- */
+const REQ = 'Ilmo (a) Senhor (a) Oficial do Cartório de Registro de Imóveis da Comarca de Cidade Ocidental – Goiás Ref.: REGISTRO DE INCORPORAÇÃO Nesta, EXEMPLO CONSTRUTORA E INCORPORADORA LTDA, CNPJ N° 11.222.333/0001-81 , sociedade empresária limitada com sede na QE 1 conjunto A lote 2 Apt 3, Bairro X, Brasília-DF, neste ato representada por seu sócio administrador FULANO DE TAL, brasileiro, nascido em 04 de janeiro de 1998, incorporadora do RESIDENCIAL EXEMPLO, que será construído no Lote 1, vem a este ofício requerer o registro de INCORPORAÇÃO neste imóvel e que recebeu a denominação de “ RESIDENCIAL EXEMPLO”, requer ainda a abertura das matrículas. Atribui-se às construções o valor de R$ 410.383,44 (quatrocentos e dez mil reais), custo global da obra. Nestes termos, Pede Deferimento. Cidade Ocidental – GO, 17 de novembro de 2026 .';
+const ALV = 'MUNICIPIO DE EXEMPLO SECRETARIA ALVARÁ DE CONSTRUÇÃO Nº 132/2026 PROPRIETÁRIO: NOME: EXEMPLO CONSTRUTORA E INCORPORADORA LTDA CPF/CNPJ: 11.222.333/0001-81 AUTOR DO PROJETO: NOME: FULANO DE TAL CREA (CAU) nº: 1000000000D-GO/ ART (RRT) PROJETO: 1020260000001 RESPONSÁVEL TÉCNICO: NOME: FULANO DE TAL CREA (CAU) nº: 1000000000D-GO/ ART (RRT) OBRA: 1020260000001 CONSTRUTORA OU RESPONSÁVEL: NOME: OUTRA LTDA fica concedida a licença para execução do projeto aprovado em 04/09/2026 a obra. Área total da obra: 211,32 m² Observações: O ALVARÁ TERÁ VALIDADE DE 2 (DOIS) ANOS. CIDADE OCIDENTAL - GO, em 04 de Setembro de 2026 Documento assinado digitalmente. FULANA Data: 08/09/2026 16:03:58-0300';
+const ART = 'Anotação de Responsabilidade Técnica ART - Lei 6.496/1977 CREA-GO ART Obra ou serviço 1020260000001 Conselho Regional de Engenharia e Agronomia de Goiás 1. Responsável Técnico(a) FULANO DE TAL RNP: 1000000000 Título profissional: Engenheiro Civil Registro: 1000000000D-GO Valor da ART: Registrada em 23/06/2026 Situação Registrada/OK';
+test('lerFichaDocs: requerimento, alvará e ART preenchem a ficha', () => {
+  const r = M.lerFichaDocs([{id: 'a', texto: REQ}, {id: 'b', texto: ALV}, {id: 'c', texto: ART}]);
+  const v = k => r[k] && r[k].valor;
+  assert.equal(v('incCnpj'), '11.222.333/0001-81');
+  assert.equal(v('incNome'), 'EXEMPLO CONSTRUTORA E INCORPORADORA LTDA');
+  assert.equal(v('incSede'), 'QE 1 conjunto A lote 2 Apt 3, Bairro X, Brasília-DF');
+  assert.equal(v('empNome'), 'RESIDENCIAL EXEMPLO');
+  assert.equal(v('empValor'), '410.383,44');
+  assert.equal(v('reqData'), '2026-11-17');
+  assert.equal(v('alvaraNum'), '132/2026');
+  assert.equal(v('aprovData'), '2026-09-04');
+  assert.equal(v('alvaraData'), '2026-09-04');   /* a data escrita no alvará, não a da assinatura digital */
+  assert.equal(v('alvaraArea'), '211,32');
+  assert.equal(v('rtNome'), 'FULANO DE TAL');
+  assert.equal(v('rtRegistro'), '1000000000D-GO');
+  assert.equal(v('rtConselho'), 'CREA');
+  assert.equal(v('rtArt'), '1020260000001');
+  assert.equal(v('rtArtData'), '2026-06-23');
+  assert.equal(r.incNome.docId, 'a');            /* o requerimento vale mais que o alvará */
+  assert.equal(r.alvaraNum.docId, 'b');
+});
+test('lerFichaDocs: não confunde o requerimento de patrimônio e ignora texto vazio ou CNPJ inválido', () => {
+  const pat = 'Ilmo. Senhor Oficial do Cartório PATRIMÔNIO DE AFETAÇÃO REGISTRO DE INCORPORAÇÃO OUTRA CONSTRUTORA LTDA, CNPJ N° 11.222.333/0001-81 requer';
+  assert.deepEqual(M.lerFichaDocs([{id: 'p', texto: pat}, {id: 'v', texto: ''}]), {});
+  const ruim = REQ.replace('11.222.333/0001-81', '11.222.333/0001-00');
+  assert.equal(M.lerFichaDocs([{id: 'a', texto: ruim}]).incCnpj, undefined);
+});
+test('lerFichaDocs: nome do incorporador quando o cabeçalho vem colado e o CNPJ vem depois', () => {
+  const t = 'Ilmo. Senhor OFICIAL DE REGISTRO DE IMÓVEIS DE CIDADE OCIDENTAL - GO Ref: INCORPORAÇÃO E REGISTRO DA FUTURA MINUTA DE CONVENÇÃO EMPRESA EXEMPLO LTDA com sede na Quadra 5, Lote 6, Brasília/DF, inscrita no CNPJ/MF nº 11.222.333/0001 - 81 , através de seu sócio. REGISTRO DE INCORPORAÇÃO vem requerer';
+  const r = M.lerFichaDocs([{id: 'a', texto: 'REGISTRO DE INCORPORAÇÃO ' + t}]);
+  assert.equal(r.incNome.valor, 'EMPRESA EXEMPLO LTDA');
+  assert.equal(r.incCnpj.valor, '11.222.333/0001-81');
+  assert.equal(r.incSede.valor, 'Quadra 5, Lote 6, Brasília/DF');
+});
+test('lerQuadroIII: CUB com mês abreviado, "R$ por m 2 =" e padrão R8-BAIXO', () => {
+  const o = M.lerQuadroIII('1. Projeto-padrão RESIDENCIAL R8-BAIXO 1 211,32 2. Sindicato Sinduscon-GO 3. Custo Unitário Básico para o mês de: nov/26 R$ por m 2 = 1.942,00 4. Áreas Globais');
+  assert.equal(o.cub, '1.942,00');
+  assert.equal(o.cubMes, '2026-11');
+  assert.equal(o.padrao, 'R8-B');
+});
+test('lerFichaDocs: data da ART quando a tabela vem em duas linhas (cabeçalho e valores), como sai do OCR', () => {
+  const ocr = 'Anotação de Responsabilidade Técnica ART CREA-GO ART Obra ou serviço 1020260000001 Valor da ART: lRegistradaem [ValorPago — |NossoNumero — SSituição — | —SNãopossui |[NãoPossu\n285,59 | 23/06/2026 |R$ 285,59 28320690126190382 — Registrada/OK [Livro de Ordem CAT';
+  assert.equal(M.lerFichaDocs([{id: 'c', texto: ocr}]).rtArtData.valor, '2026-06-23');
+});
