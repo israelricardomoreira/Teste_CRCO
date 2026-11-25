@@ -2,7 +2,7 @@
  * checklist, exigências e tempos, e baixa tudo ANONIMIZADO num .json separado (junto com o ZIP do GED).
  * Serve para melhorar a leitura dos documentos a cada versão. Nada é enviado: o arquivo só é baixado. */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/aprendizado.js'] = '1.5.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/aprendizado.js'] = '1.5.1';
 
 function freshAprend(){ return {inicio:new Date().toISOString(), sug:{}, manual:{}, notas:[], tempos:{}, ckModelo:null}; }
 function AP(){ if (!S.aprend) S.aprend = freshAprend(); return S.aprend; }
@@ -69,7 +69,7 @@ function aprendTrocaEtapa(nova){
   if (A._t && A._etapa) A.tempos[A._etapa] = (A.tempos[A._etapa] || 0) + Math.min(agora - A._t, 15 * 60000);
   A._t = agora; A._etapa = nova;
 }
-function origemPagina(p){ return p.raw ? 'pdf-texto' : p.ocr ? 'ocr' : 'sem-texto'; }
+function origemPagina(p){ return p.raw && !Motor.textoIlegivel(p.raw) ? 'pdf-texto' : p.ocr ? 'ocr' : 'sem-texto'; }
 function fonteDe(pageId){
   const p = pageId ? pageById(pageId) : null; if (!p) return {tipo:'colado'};
   const d = S.docs.find(x => x.pageIds.includes(p.id));

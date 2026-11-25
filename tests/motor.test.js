@@ -182,3 +182,46 @@ test('arredondamento do RT: truncado vira atenção, não erro', () => {
   assert.equal(M.compararRT('12,35', 12.349).c, 'ok');
   assert.equal(M.compararRT('12,34', 12.349).c, 'arred');
 });
+
+/* ---- GED: texto ilegível, nome limpo e categoria sugerida (nomes neutros, sem dados de cliente) ---- */
+test('textoIlegivel: lixo de fonte sem mapeamento x texto normal e tabela de números', () => {
+  const lixo = Array.from({length: 60}, (_, i) => String.fromCharCode(i % 8 + 1) + ' ').join('') + 'AB CD';
+  assert.equal(M.textoIlegivel(lixo), true);
+  assert.equal(M.textoIlegivel('Estado de Goiás Poder Judiciário CERTIDÃO NEGATIVA - CÍVEL certifica a requerimento da parte interessada'), false);
+  assert.equal(M.textoIlegivel('101 77,03 0,00 77,03 26,47 103,51 0,25000 102 135,07 0,00 135,07 26,47 161,55 0,25000 TOTAIS 314,64 Área'), false);
+  assert.equal(M.textoIlegivel('curto'), false);
+  assert.equal(M.textoIlegivel(''), false);
+});
+test('nomeLimpo: extensão, underscores e escapes literais', () => {
+  assert.equal(M.nomeLimpo('REQUERIMENTO__EXEMPLO.pdf'), 'REQUERIMENTO EXEMPLO');
+  assert.equal(M.nomeLimpo('REDUu00C7u00C3O_X.pdf'), 'REDUÇÃO X');
+  assert.equal(M.nomeLimpo('CNH_.pdf'), 'CNH');
+});
+test('categoriaPeloNome: separadores, certidões e declarações', () => {
+  const c = M.categoriaPeloNome;
+  assert.equal(c('CNH_'), 'DOCUMENTO_PESSOAL');
+  assert.equal(c('EMPRESA__CIVEL_1G'), 'CERTIDAO');
+  assert.equal(c('SOCIO__CRIMINAL_2'), 'CERTIDAO');
+  for (const n of ['EMPRESA__PROTESTO_DF', 'EMPRESA__SEFAZ_GO', 'EMPRESA__PGFN', 'EMPRESA__TRABALHISTA_1', 'EMPRESA__SIMPLIFICADA', 'CNDT_EMPRESA']) assert.equal(c(n), 'CERTIDAO', n);
+  assert.equal(c('Discriminacao_das_Fracoes_Ideais_do_Terreno'), 'DECLARACAO');
+  assert.equal(c('Declaracao_de_Quota_parte'), 'DECLARACAO');
+  assert.equal(c('Declaracao_Prazo_de_Carencia'), 'DECLARACAO');
+  assert.equal(c('REQUERIMENTO_PARA_REDUu00C7u00C3O_PMCMV'), 'DECLARACAO');
+  assert.equal(c('CONTRATO_SOCIAL_PROCESSO_1'), 'CONTRATO');
+  assert.equal(c('MEMORIAL_DESCRITIVO'), 'MEMORIAL');
+  assert.equal(c('PROJETO_APROVADO'), 'PROJETO');
+  assert.equal(c('MATRICULA_QD_1_LT_1'), 'MATRICULA');
+  /* como o cartório usa: vão em Outros */
+  for (const n of ['ALVARA_X', 'ART___X', 'QUADRO_NBR_X', 'CONVENCAO_DE_CONDOMINIO_X', 'REQUERIMENTO_X', 'TERMO_DE_ADESAO_X']) assert.equal(c(n), 'OUTROS', n);
+});
+test('categoriaPeloTexto: matrícula só se for o cabeçalho; certidão e fração ideal', () => {
+  const c = M.categoriaPeloTexto;
+  assert.equal(c('Página 1 de 3 Certidão de Inteiro Teor da Matrícula/Registro nº 9.508 - Selo Digital'), 'MATRICULA');
+  assert.equal(c('DISCRIMINAÇÃO DAS FRAÇÕES IDEAIS DE TERRENO INCORPORAÇÃO: Lote 1, Quadra 2, sob a matrícula 9.508 com área de 360 m²'), 'DECLARACAO');
+  assert.equal(c('Estado de Goiás Poder Judiciário TODAS AS COMARCAS CERTIDÃO NEGATIVA - CÍVEL'), 'CERTIDAO');
+  assert.equal(c('CENTRAL DE CERTIDÕES DE PROTESTO DO DF NADA CONSTA'), 'CERTIDAO');
+  assert.equal(c('Ilustríssimo Senhor Oficial, DECLARO sob responsabilidade civil e criminal, conforme PMCMV'), 'DECLARACAO');
+  assert.equal(c('Anotação de Responsabilidade Técnica ART Obra ou serviço'), 'OUTROS');
+  assert.equal(c(''), null);
+  assert.equal(c('texto sem pista nenhuma aqui'), null);
+});

@@ -2,10 +2,10 @@
  * Usado na Conferência, no "Comparar" e nas janelas separadas (visor.html). Não depende dos outros arquivos:
  * conversa com o programa pelo objeto H (HOST da janela principal), então funciona igual em qualquer janela. */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/leitor.js'] = '1.5.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/leitor.js'] = '1.5.1';
 
 window.Leitor = (function(){
-  const VERSAO = '1.5.0';
+  const VERSAO = '1.5.1';
   const PALETA = ['#ffd600', '#7ed957', '#ff6b6b', '#4da3ff', '#ff9f1a', '#ff66c4', '#1d4f91', '#13703f', '#b42318', '#111111'];
   const FERR = [
     ['mao', '✋', 'Mão: arrastar a página e marcar pontos a conferir', 'v'],
@@ -351,7 +351,7 @@ window.Leitor = (function(){
         case 'txt': U.txt = !U.txt; gaveta(p); setTimeout(desenhar, 0); break;
         case 'usar': { const s = String(win.getSelection() || '').trim(); if (!s) { aviso('Selecione um trecho no texto primeiro.', 'err'); break; } H.insertActive(s, p, 'selecao'); gaveta(p); break; }
         case 'ocr': if (p) H.ocrPages([p]).then(() => atualizar()); break;
-        case 'ocrd': { const ps = paginas().filter(x => !x.raw); if (!ps.length) { aviso('Todas as páginas deste documento já têm texto.'); break; } H.ocrPages(ps).then(() => atualizar()); break; }
+        case 'ocrd': { const ps = paginas().filter(x => !H.pageText(x)); if (!ps.length) { aviso('Todas as páginas deste documento já têm texto.'); break; } H.ocrPages(ps).then(() => atualizar()); break; }
         case 'comp': H.alternarComparar(); break; case 'jan': H.abrirJanelaDoc(); break; case 'fechar': H.alternarComparar(false); break;
         case 'nova': { const w2 = win.open(`visor.html#ind=1&doc=${encodeURIComponent(st.docId)}&i=${st.i}`, 'qcrco-visor-' + Date.now().toString(36), 'popup=yes,width=900,height=1200'); if (!w2) aviso('O navegador bloqueou a janela. Permita pop-ups para este site.', 'err'); break; }
         case 'ajuda': if (U.pop && U.pop.ajuda) fecharPop(); else abrirAjuda(); break;

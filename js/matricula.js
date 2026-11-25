@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/matricula.js: leitura automática da matrícula (preenche a ficha e mostra titular, atos e ônus) */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.5.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.5.1';
 
 /* Texto da matrícula: documento MATRICULA do GED (ou o que está aberto na Conferência), senão o usuário cola */
 function matTextoDoGED(){
@@ -114,7 +114,7 @@ async function lerMatriculaDoDoc(doc){
 }
 async function importarMatricula(files){
   const antes = new Set(S.pages.map(p => p.id));
-  await handleFiles(files, {});
+  await handleFiles(files, {auto:false});
   const novas = S.pages.filter(p => !antes.has(p.id) && !p.grouped);
   if (!novas.length) return;
   const doc = addDoc({pageIds:novas.map(p => p.id), category:'MATRICULA', name:'Matrícula', order:1});

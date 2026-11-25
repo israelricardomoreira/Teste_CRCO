@@ -468,6 +468,52 @@ function auditoria(R, I, campos, meta){
     if (o.padrao) o.padrao = o.padrao.replace(/^(R|PP|CAL|CSL)-?(\d+)-?/, '$1$2-').replace(/-$/, '');
     return o;
   }
-  return {VERSAO:'1.5.0', onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
+  /* ---------- GED: texto ilegível, nome limpo e categoria sugerida (regras puras, com testes) ---------- */
+  /* PDF cujo texto embutido é lixo (fonte sem mapeamento): caracteres de controle ou da área privada demais.
+   * Nas 17 páginas ilegíveis reais o índice ficou entre 20% e 60%; nas legíveis (inclusive tabelas só de números) foi 0%. */
+  function textoIlegivel(t){
+    const s = String(t || '').replace(/\s+/g, ''), n = s.length;
+    if (n < 40) return false;
+    const ctrl = (s.match(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\ue000-\uf8ff\ufffd]/g) || []).length;
+    return ctrl / n > 0.05;
+  }
+  const semAcento = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+  /* nome do arquivo para exibir: sem extensão, "_" viram espaço, escapes literais "u00C7" viram a letra */
+  function nomeLimpo(nome){
+    return String(nome || '').replace(/\.(pdf|jpe?g|png|webp|tiff?)$/i, '').replace(/u00([0-9a-f]{2})/gi, (m, h) => String.fromCharCode(parseInt(h, 16)))
+      .replace(/_+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  /* categoria pelo nome do arquivo; "_" e "-" contam como separador (antes \b falhava em "CNH_") */
+  function categoriaPeloNome(nome){
+    const s = semAcento(nomeLimpo(nome)).toLowerCase().replace(/[-.]+/g, ' ');
+    /* como o cartório usa: alvará, ART/RRT, quadros da NBR, convenção e requerimento vão em Outros */
+    const r = [[/matricula/, 'MATRICULA'], [/escritura/, 'ESCRITURA'], [/procura/, 'PROCURACAO'],
+      [/certid|\bcnd|civel|criminal|protesto|sefaz|pgfn|trabalhista|simplificada|nada consta/, 'CERTIDAO'], [/contrato/, 'CONTRATO'],
+      [/declara|pmcmv|fracoes? ideais?|fracao ideal|quota|carencia|vagas? de garagem/, 'DECLARACAO'],
+      [/ato lavrado|traslado/, 'ATO_LAVRADO'], [/memorial/, 'MEMORIAL'], [/planta/, 'PLANTA_ENGENHARIA'], [/projeto/, 'PROJETO'],
+      [/\brg\b|\bcnh\b|identidade|\bcpf\b/, 'DOCUMENTO_PESSOAL']];
+    for (const [re, c] of r) if (re.test(s)) return c;
+    return 'OUTROS';
+  }
+  /* categoria pelo texto do topo do documento (cada regra olha só uma janela do início: "matrícula nº 9.508" no meio de uma declaração não a torna matrícula) */
+  function categoriaPeloTexto(txt){
+    const t = semAcento(String(txt || '').slice(0, 700)).toUpperCase().replace(/\s+/g, ' ');
+    if (!t.trim()) return null;
+    /* a regra específica de declaração vem antes: ela cita "matrícula nº …" logo no começo */
+    const r = [[/PMCMV|MINHA CASA MINHA VIDA|DISCRIMINACAO DAS FRACOES IDEAIS|FRACOES IDEAIS DE TERRENO/, 'DECLARACAO', 500],
+      [/MATRICULA\s*(?:N[O.º°]*)?\s*\d[\d.]*|LIVRO\s*(?:N[O.º°]*\s*)?2\b.*REGISTRO GERAL|CERTIDAO DE INTEIRO TEOR/, 'MATRICULA', 160],
+      [/ESCRITURA PUBLICA|ESCRITURA DE /, 'ESCRITURA'], [/PROCURACAO|SUBSTABELECIMENTO/, 'PROCURACAO'],
+      [/ANOTACAO DE RESPONSABILIDADE TECNICA|REGISTRO DE RESPONSABILIDADE TECNICA|\bART\b N|ALVARA|REQUERIMENTO|CONVENCAO DE CONDOMINIO|MINUTA DA CONVENCAO|QUADRO I\b|NBR 12\.?721/, 'OUTROS'],
+      [/MEMORIAL DESCRITIVO|MEMORIAL DE INCORPORACAO/, 'MEMORIAL'],
+      [/CERTIDAO|CERTIFICA(?:MOS)? QUE|NADA CONSTA|CND\b|CPEN/, 'CERTIDAO'],
+      [/CONTRATO|INSTRUMENTO PARTICULAR|ALTERACAO CONTRATUAL|CONSOLIDACAO/, 'CONTRATO'],
+      [/DECLARACAO|DECLARA(?:MOS)? (?:PARA OS DEVIDOS FINS|QUE)/, 'DECLARACAO'],
+      [/CARTEIRA NACIONAL DE HABILITACAO|CARTEIRA DE IDENTIDADE|REGISTRO GERAL\b(?!.*LIVRO)|DOCUMENTO DE IDENTIDADE/, 'DOCUMENTO_PESSOAL'],
+      [/PROJETO ARQUITETONICO|PROJETO DE ARQUITETURA/, 'PROJETO'], [/PLANTA (?:BAIXA|DE SITUACAO|DE LOCACAO)/, 'PLANTA_ENGENHARIA'],
+      [/TRASLADO|ATO LAVRADO/, 'ATO_LAVRADO']];
+    for (const [re, c, j] of r) if (re.test(j ? t.slice(0, j) : t)) return c;
+    return null;
+  }
+  return {VERSAO:'1.5.1', textoIlegivel:textoIlegivel, nomeLimpo:nomeLimpo, categoriaPeloNome:categoriaPeloNome, categoriaPeloTexto:categoriaPeloTexto, onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
 })();
 if (typeof module !== 'undefined') module.exports = Motor;

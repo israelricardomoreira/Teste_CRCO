@@ -1,28 +1,15 @@
 /* Qualificador CRCO — js/ged.js: etapa 1 · documentos (GED): importar, agrupar, ordenar, ZIP e validação de assinatura */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.5.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.5.1';
 /* =====================================================================
    1. DOCUMENTOS (GED)
    ===================================================================== */
 const pageById = id => S.pages.find(p => p.id === id);
 const hasSig = buf => { try { return new TextDecoder('latin1').decode(buf).includes('/ByteRange'); } catch (e) { return false; } };
-/* tipo do documento pelo TEXTO do topo da 1ª página (título) — mais confiável que o nome do arquivo */
-function detectCatTexto(txt){
-  const t = String(txt || '').slice(0, 700).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ');
-  if (!t.trim()) return null;
-  const r = [[/MATRICULA\s*(?:N[O.º°]*)?\s*\d[\d.]*|LIVRO\s*(?:N[O.º°]*\s*)?2\b.*REGISTRO GERAL|CERTIDAO DE INTEIRO TEOR/, 'MATRICULA'],
-    [/ESCRITURA PUBLICA|ESCRITURA DE /, 'ESCRITURA'], [/PROCURACAO|SUBSTABELECIMENTO/, 'PROCURACAO'],
-    [/ANOTACAO DE RESPONSABILIDADE TECNICA|REGISTRO DE RESPONSABILIDADE TECNICA|\bART\b N|ALVARA|REQUERIMENTO|CONVENCAO DE CONDOMINIO|MINUTA DA CONVENCAO|QUADRO I\b|NBR 12\.?721/, 'OUTROS'],
-    [/MEMORIAL DESCRITIVO|MEMORIAL DE INCORPORACAO/, 'MEMORIAL'],
-    [/CERTIDAO|CERTIFICA(?:MOS)? QUE|NADA CONSTA|CND\b|CPEN/, 'CERTIDAO'],
-    [/CONTRATO|INSTRUMENTO PARTICULAR|ALTERACAO CONTRATUAL|CONSOLIDACAO/, 'CONTRATO'],
-    [/DECLARACAO|DECLARA(?:MOS)? (?:PARA OS DEVIDOS FINS|QUE)/, 'DECLARACAO'],
-    [/CARTEIRA NACIONAL DE HABILITACAO|CARTEIRA DE IDENTIDADE|REGISTRO GERAL\b(?!.*LIVRO)|DOCUMENTO DE IDENTIDADE/, 'DOCUMENTO_PESSOAL'],
-    [/PROJETO ARQUITETONICO|PROJETO DE ARQUITETURA/, 'PROJETO'], [/PLANTA (?:BAIXA|DE SITUACAO|DE LOCACAO)/, 'PLANTA_ENGENHARIA'],
-    [/TRASLADO|ATO LAVRADO/, 'ATO_LAVRADO']];
-  for (const [re, c] of r) if (re.test(t)) return c;
-  return null;
-}
+/* tipo do documento pelo TEXTO do topo da 1ª página (título) — mais confiável que o nome do arquivo; regras em Motor.categoriaPeloTexto */
+const detectCatTexto = txt => Motor.categoriaPeloTexto(pageTextoSeguro(txt));
+/* texto lixo (fonte sem mapeamento) não classifica nada */
+const pageTextoSeguro = t => Motor.textoIlegivel(t) ? "" : t;
 /* "assinatura" do documento (primeiras palavras do topo) para lembrar a escolha do usuário */
 function assinaturaDoc(txt){ return String(txt || '').slice(0, 300).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z ]/g, ' ').split(/\s+/).filter(w => w.length > 3).slice(0, 6).join(' '); }
 function sugerirCategoria(nome, txt){
@@ -34,16 +21,8 @@ function sugerirCategoria(nome, txt){
   return {cat:'OUTROS', fonte:'padrao', pn, pt, ass};
 }
 function lembrarCategoria(ass, cat){ if (!ass || ass.split(' ').length < 3) return; const m = lsGet('qcrco_catmem', {}); m[ass] = cat; const ks = Object.keys(m); if (ks.length > 400) delete m[ks[0]]; lsSet('qcrco_catmem', m); }
-function detectCat(s){
-  s = (s || '').toLowerCase();
-  /* Alvará, ART/RRT e quadros da NBR vão em Projeto; requerimento e convenção em Outros (ajuste aqui se o cartório usar outra) */
-  /* como o cartório usa: alvará, ART/RRT, quadros da NBR, convenção e requerimento vão em Outros */
-  const r = [[/matr[ií]cula/,'MATRICULA'],[/escritura/,'ESCRITURA'],[/procura/,'PROCURACAO'],[/certid|\bcnd/,'CERTIDAO'],[/contrato/,'CONTRATO'],[/declara/,'DECLARACAO'],
-    [/ato lavrado|traslado/,'ATO_LAVRADO'],[/memorial/,'MEMORIAL'],[/planta/,'PLANTA_ENGENHARIA'],[/projeto/,'PROJETO'],
-    [/\brg\b|\bcnh\b|identidade|\bcpf\b/,'DOCUMENTO_PESSOAL']];
-  for (const [re, c] of r) if (re.test(s)) return c;
-  return 'OUTROS';
-}
+/* categoria pelo NOME do arquivo — regras em Motor.categoriaPeloNome ("_" e "-" são separadores) */
+const detectCat = s => Motor.categoriaPeloNome(s);
 function addDoc({pageIds, category, name, order, validade = ''}){
   let ord = parseInt(order, 10);
   if (!ord || ord < 1) ord = Math.max(0, ...S.docs.map(d => d.order)) + 1;
@@ -117,7 +96,8 @@ async function handleFiles(list, target = {}){
   const ok = arr.filter(f => TIPOS_ACEITOS.test(f.name) && !/\.zip$/i.test(f.name)).sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric:true, sensitivity:'base'}));
   if (!ok.length) return;
   if (ok.some(f => /\.pdf$/i.test(f.name)) && !window.pdfjsLib) { toast('Leitor de PDF indisponível (sem internet?).', 'err'); return; }
-  const novas = [], pendDocs = [];
+  /* arquivo "cru" (sem o padrão "NN - CATEGORIA - nome"): cada PDF/TIFF vira um documento, a menos que o usuário desligue a opção */
+  const novas = [], pendDocs = [], pendAuto = [], auto = target.auto !== false && !target.doc && autoAgruparLigado();
   busy(true, 'Lendo arquivos…', 1);
   try {
     for (let i = 0; i < ok.length; i++) {
@@ -154,13 +134,34 @@ async function handleFiles(list, target = {}){
       }
       if (target.doc) { ids.forEach(id => novas.find(x => x.id === id).grouped = true); target.doc.pageIds.splice(target.at ?? target.doc.pageIds.length, 0, ...ids); if (target.at != null) target.at += ids.length; }
       else if (m) { const cat = m[2].toUpperCase(); pendDocs.push({pageIds:ids, category:CATS.includes(cat) ? cat : 'OUTROS', name:gm ? gm.name : m[3], order:m[1], validade:gm ? gm.validade || '' : ''}); }
+      else if (auto && ids.length && /\.(pdf|tiff?)$/i.test(f.name)) pendAuto.push({pageIds:ids, name:Motor.nomeLimpo(f.name)});
     }
   } finally { busy(false); }
   if (target.index != null) S.pages.splice(target.index, 0, ...novas); else S.pages.push(...novas);
   pendDocs.forEach(d => addDoc(d));
+  const docsAuto = pendAuto.map(a => {
+    const sug = sugerirCategoria(a.name, pageText(pageById(a.pageIds[0])));
+    const d = addDoc({pageIds:a.pageIds, category:sug.cat, name:a.name});
+    d.catSug = {cat:sug.cat, fonte:sug.fonte, porNome:sug.pn, porTexto:sug.pt}; return d;
+  });
   if (pendDocs.length && S.gedMapa) { S.docs.forEach(d => { const g = S.gedMapa.find(x => x.order === d.order); if (g && !d.validade && g.validade) d.validade = g.validade; }); }
   renderGED(); markDirty();
-  if (novas.length) toast(`${novas.length} página(s) importada(s).`);
+  if (novas.length) toast(`${novas.length} página(s) importada(s)` + (docsAuto.length ? `, ${docsAuto.length} documento(s) agrupado(s) automaticamente.` : '.'));
+  if (docsAuto.length) await classificarIlegiveis(docsAuto);
+}
+const autoAgruparLigado = () => { const c = $('chkAuto'); return c ? c.checked : true; };
+/* PDF com texto ilegível (fonte sem mapeamento): lê só a 1ª página por OCR e reclassifica quando a categoria era "padrão" (sem nenhuma pista) */
+async function classificarIlegiveis(docs){
+  /* só quem ficou sem pista de categoria (as demais já têm categoria pelo nome; o OCR delas sai sob demanda, pelo botão "Ler com OCR") */
+  const alvo = docs.filter(d => { const p = pageById(d.pageIds[0]); return p && p.raw && Motor.textoIlegivel(p.raw) && !p.ocr && d.catSug && d.catSug.fonte === 'padrao'; });
+  if (!alvo.length) return;
+  toast(`${alvo.length} documento(s) sem categoria e com texto ilegível no PDF: lendo a 1ª página por OCR para classificar.`);
+  await ocrPages(alvo.map(d => pageById(d.pageIds[0])));
+  alvo.forEach(d => {
+    const sug = sugerirCategoria(d.name, pageText(pageById(d.pageIds[0])));
+    if (d.catSug && d.catSug.fonte === 'padrao' && sug.fonte !== 'padrao') { d.category = sug.cat; d.catSug = {cat:sug.cat, fonte:sug.fonte, porNome:sug.pn, porTexto:sug.pt}; }
+  });
+  renderGED(); markDirty();
 }
 function renderGED(){ renderMatCard(); renderPages(); renderDocs(); }
 function renderPages(){
@@ -292,6 +293,7 @@ function validarAssinatura(fileKey){
 function bindGED(){
   /* GED */
   $('btnImport').onclick = () => $('fileIn').click();
+  if ($('chkAuto')) { $('chkAuto').checked = lsGet('qcrco_autogrupo', true) !== false; $('chkAuto').onchange = () => lsSet('qcrco_autogrupo', $('chkAuto').checked); }
   $('fileIn').onchange = e => { handleFiles(e.target.files, {}); e.target.value = ''; };
   $('btnGroup').onclick = () => openGroup([...sel]);
   $('btnSelAll').onclick = () => { S.pages.forEach(p => { if (!p.grouped) sel.add(p.id); }); renderPages(); };

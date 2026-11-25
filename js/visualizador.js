@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/visualizador.js: lupa, régua, contraste, texto/OCR e exigência rápida */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/visualizador.js'] = '1.5.0';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/visualizador.js'] = '1.5.1';
 /* ---------- OCR (Tesseract.js, carregado sob demanda) ---------- */
 let ocrWorker = null;
 async function ensureOCR(){
@@ -49,7 +49,8 @@ async function ocrPages(list){
   } catch (e) { console.error(e); toast('OCR indisponível: ' + e.message, 'err'); }
   finally { busy(false); }
 }
-const pageText = p => (p && (p.raw || p.ocr)) || '';
+/* texto da página: o embutido no PDF, ou o do OCR quando o embutido é lixo (fonte sem mapeamento) */
+const pageText = p => { if (!p) return ''; const r = p.raw || ''; return r && !Motor.textoIlegivel(r) ? r : (p.ocr || ''); };
 
 /* =====================================================================
    Visualizador (lupa)
