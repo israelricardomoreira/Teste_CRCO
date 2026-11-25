@@ -393,3 +393,37 @@ test('exigidosIncorporacao: sede em Goiás não pede as certidões do DF; certid
   assert.equal(st('cndt').status, 'falta');                          /* a CNDT é de outra empresa */
   assert.equal(r.resumo.total, 22);
 });
+
+/* ---- Painel de validação: onde validar e o código lido (textos neutros, códigos inventados) ---- */
+test('urlsDoTexto: reconstrói a URL quebrada no fim da linha e tira a pontuação', () => {
+  const u = M.urlsDoTexto('Escaneie o QR CODE. https://prefeitura.exemplo.gov.br/validar/documento- eletronico/abc123def456 Documento assinado. Veja <http://www.pgfn.gov.br>. fim');
+  assert.deepEqual(u, ['https://prefeitura.exemplo.gov.br/validar/documento-eletronico/abc123def456', 'http://www.pgfn.gov.br']);
+});
+test('validacoesDocs: cada documento com o site e o código lido', () => {
+  const docs = [
+    docEx('m', 'Matrícula 1', 'MATRICULA', 'Página 1 de 3 Certidão de Inteiro Teor da Matrícula nº 1 - Selo Digital: 00552602112917134420041 CERTIDÃO ... Valide este documento clicando no link a seguir: https://assinador-web.onr.org.br/docs/AAAAA-BBBBB-CCCCC-DDDDD Valide aqui'),
+    docEx('a', 'ART EXEMPLO', 'OUTROS', 'Anotação de Responsabilidade Técnica ART CREA-GO ART Obra ou serviço 1020260000001'),
+    docEx('v', 'ALVARA EXEMPLO', 'OUTROS', 'ALVARÁ DE CONSTRUÇÃO Nº 1/2026 Hash do documento original: #abc https://prefeitura.exemplo.gov.br/validar/documento- eletronico/abc123def456 Documento assinado digitalmente.'),
+    docEx('s', 'EMPRESA SEFAZ GO', 'CERTIDAO', 'ESTADO DE GOIAS SECRETARIA DE ESTADO DA ECONOMIA CERTIDAO DE DEBITO INSCRITO EM DIVIDA ATIVA - NEGATIVA NR. CERTIDÃO: Nº 12345678 NAO CONSTA DEBITO'),
+    docEx('t', 'EMPRESA TRABALHISTA', 'CERTIDAO', 'CERTIDÃO NEGATIVA DE DÉBITOS TRABALHISTAS Nome: EXEMPLO LTDA CNPJ: ' + CNPJ_T + ' Certidão nº: 94773473/2026 Expedição: 09/11/2026 Validade: 08/05/2027 - 180 dias'),
+    docEx('f', 'EMPRESA PGFN', 'CERTIDAO', 'Procuradoria-Geral da Fazenda Nacional CERTIDÃO NEGATIVA DE DÉBITOS RELATIVOS AOS TRIBUTOS FEDERAIS verificação de sua autenticidade nos endereços <http://rfb.gov.br> ou <http://www.pgfn.gov.br>. Código de controle da certidão: 9C01.44AD.2624.9703 Qualquer rasura'),
+    docEx('j', 'EMPRESA SIMPLIFICADA', 'CERTIDAO', 'Certidão Simplificada Digital emitida pela JUNTA COMERCIAL 2) Validação visual (digite o nº C260000657753 e visualize a certidão)'),
+    docEx('d', 'certidao', 'CERTIDAO', CERT_TXT.TJDFT + ' Selo digital de segurança: 2026.CTD.EKT3.GUOB.HZM5.AJ9B.WPMB'),
+    docEx('g', 'EMPRESA CIVEL 1', 'CERTIDAO', 'Estado de Goiás Poder Judiciário TODAS AS COMARCAS CERTIDÃO NEGATIVA - CÍVEL Documento Publicado Digitalmente em 17/11/2026 Localizar pelo código: 102788734564, no endereço: https://projudi.tjgo.jus.br/CertidaoPublica'),
+    docEx('p', 'EMPRESA PROTESTO DF', 'CERTIDAO', 'CENTRAL DE CERTIDÕES DE PROTESTO DO DF CERTIDÃO UNIFICADA DE PROTESTO NADA CONSTA Selo Digital: TJDFT20260410006596LTLX. Emitida às 09:09:49 em 18/11/2026 Código de autenticação: UD6-LOA-MC4 https://cartoriosdeprotestodf.com.br'),
+    docEx('h', 'CNH', 'DOCUMENTO_PESSOAL', 'validação do documento digital em: https://www.serpro.gov.br/assinador-digital')
+  ];
+  const r = M.validacoesDocs(docs, {rtArt: '1020260000001'}), por = id => (r.find(x => x.docId === id) || {itens: []}).itens;
+  assert.deepEqual(por('m').map(i => [i.id, i.codigo]), [['onr', 'AAAAA-BBBBB-CCCCC-DDDDD'], ['selo-tjgo', '00552602112917134420041']]);
+  assert.equal(por('m')[0].url, 'https://assinador-web.onr.org.br/docs/AAAAA-BBBBB-CCCCC-DDDDD');
+  assert.equal(por('a')[0].codigo, '1020260000001'); assert.ok(/crea-go/.test(por('a')[0].url));
+  assert.equal(por('v')[0].url, 'https://prefeitura.exemplo.gov.br/validar/documento-eletronico/abc123def456');
+  assert.equal(por('s')[0].codigo, '12345678'); assert.ok(/sefaz\.go\.gov\.br/.test(por('s')[0].url));
+  assert.equal(por('t')[0].codigo, '94773473/2026'); assert.ok(/cndt-certidao\.tst/.test(por('t')[0].url));
+  assert.equal(por('f')[0].codigo, '9C01.44AD.2624.9703'); assert.equal(por('f')[0].url, 'http://www.pgfn.gov.br');
+  assert.equal(por('j')[0].codigo, 'C260000657753');
+  assert.equal(por('d')[0].codigo, '2026.CTD.EKT3.GUOB.HZM5.AJ9B.WPMB'); assert.equal(por('d')[0].url, 'https://cnc.tjdft.jus.br/');
+  assert.equal(por('g')[0].codigo, '102788734564'); assert.equal(por('g')[0].url, 'https://projudi.tjgo.jus.br/CertidaoPublica');
+  assert.deepEqual(por('p').map(i => [i.id, i.codigo]), [['protdf', 'UD6-LOA-MC4'], ['selo-tjdft', 'TJDFT20260410006596LTLX']]);
+  assert.deepEqual(por('h'), []);                                       /* CNH: não tem validador web */
+});

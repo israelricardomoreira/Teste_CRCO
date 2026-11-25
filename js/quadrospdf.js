@@ -1,7 +1,7 @@
 /* Qualificador CRCO — js/quadrospdf.js: importa os Quadros I, II e III da NBR 12721 direto do PDF do RT
  * (pela posição de cada número na linha das colunas). A regra de leitura fica no motor.js. */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/quadrospdf.js'] = '1.5.6';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/quadrospdf.js'] = '1.5.7';
 
 function nbrPontuacao(d){
   return d.pageIds.map(pageById).filter(Boolean).reduce((n, p) => { const t = pageText(p); return n + (/QUADRO\s+II\b/i.test(t) ? 5 : 0) + (/QUADRO\s+I\b/i.test(t) ? 5 : 0) + (/NBR\s*12\.?721/i.test(t) ? 1 : 0); }, 0);

@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/ged.js: etapa 1 · documentos (GED): importar, agrupar, ordenar, ZIP e validação de assinatura */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.5.6';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.5.7';
 /* =====================================================================
    1. DOCUMENTOS (GED)
    ===================================================================== */

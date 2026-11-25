@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/checklist.js: etapa 3 · checklist editável e modelos por tipo de ato */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/checklist.js'] = '1.5.6';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/checklist.js'] = '1.5.7';
 /* =====================================================================
    3. CHECKLIST (editável)
    ===================================================================== */
@@ -30,6 +30,7 @@ function setStatus(id, st){
   renderCheck(); markDirty();
 }
 function renderCheck(){
+  const vl = $('valid'); if (vl) { const hv = validacaoHTML(); vl.innerHTML = hv; $('validCard').hidden = !hv; }
   const dx = $('docsExig'); if (dx) { const h = docsExigidosHTML(); dx.innerHTML = h; $('docsExigCard').hidden = !h; }
   const st = {pend:0, ok:0, exig:0, na:0}; S.checklist.forEach(i => st[i.status]++);
   $('ckTipo').textContent = TIPOS_ATO[S.meta.tipoAto];
@@ -46,7 +47,7 @@ function renderCheck(){
 
 function bindChecklist(){
   /* Checklist */
-  bindDocsExigidos(); $('ckLoad').onclick = carregarModelo; $('ckSave').onclick = salvarModelo; $('ckReset').onclick = resetModelo;
+  bindDocsExigidos(); bindValidacao(); $('ckLoad').onclick = carregarModelo; $('ckSave').onclick = salvarModelo; $('ckReset').onclick = resetModelo;
   $('ckAdd').onclick = () => { S.checklist.push({id:uid(), texto:'', base:'', status:'pend', obs:''}); renderCheck(); markDirty(); const l = $('ckList').querySelectorAll('.ck-main input:first-child'); if (l.length) l[l.length - 1].focus(); };
   $('ckList').addEventListener('click', e => {
     const row = e.target.closest('.ck'); if (!row) return; const id = row.dataset.ck, i = S.checklist.findIndex(x => x.id === id);
@@ -87,5 +88,58 @@ function bindDocsExigidos(){
     }
     const g = e.target.closest('[data-dxdoc]');
     if (g) { const d = S.docs.find(x => x.id === g.dataset.dxdoc); if (d) { d.collapsed = false; goStep('ged'); setTimeout(() => { const el = document.querySelector('[data-doc="' + d.id + '"]'); if (el) el.scrollIntoView({block:'center'}); }, 60); } }
+  });
+}
+
+/* ---------- Painel de validação: cada documento com o site certo e o código já lido ---------- */
+function validacoesDoCaso(){
+  const docs = S.docs.map(d => ({id:d.id, nome:d.name, categoria:d.category, texto:d.pageIds.map(pageById).filter(Boolean).map(pageText).join(' ').slice(0, 6000)}));
+  const mapa = new Map(Motor.validacoesDocs(docs, {rtArt:S.campos.rtArt}).map(x => [x.docId, x.itens.slice()]));
+  S.docs.forEach(d => {
+    const fks = [...new Set(d.pageIds.map(pageById).filter(p => p && p.hasSig && FILES.has(p.fileKey)).map(p => p.fileKey))];
+    fks.forEach((fk, n) => { const l = mapa.get(d.id) || []; l.push({id:'iti' + (n ? n + 1 : ''), site:'ITI (assinatura digital)', url:'', codigo:FILES.get(fk).name, aviso:'cole o nome e tecle Enter', fileKey:fk}); mapa.set(d.id, l); });
+  });
+  return S.docs.filter(d => mapa.has(d.id)).map(d => ({d, itens:mapa.get(d.id)}));
+}
+const vKey = (d, it) => ((pageById(d.pageIds[0]) || {}).chave || d.id) + '|' + it.id;
+function validacaoResumo(){
+  S.valid = S.valid || {};
+  let total = 0, feitos = 0;
+  validacoesDoCaso().forEach(({d, itens}) => itens.forEach(it => { total++; if (S.valid[vKey(d, it)]) feitos++; }));
+  return {total, feitos};
+}
+function validacaoHTML(){
+  const L = validacoesDoCaso(); if (!L.length) return '';
+  S.valid = S.valid || {};
+  let total = 0, feitos = 0;
+  const linhas = L.map(({d, itens}) => itens.map(it => {
+    const k = vKey(d, it), ok = !!S.valid[k]; total++; if (ok) feitos++;
+    return '<div class="vl' + (ok ? ' ok' : '') + '"><label class="vl-c"><input type="checkbox" data-vlok="' + esc(k) + '"' + (ok ? ' checked' : '') + ' aria-label="Validado: ' + esc(d.name) + '"></label>'
+      + '<span class="vl-d"><button type="button" class="srcb" data-dxdoc="' + d.id + '" title="Abrir na lista de documentos">' + String(d.order).padStart(2, '0') + ' ' + esc(d.name) + '</button></span>'
+      + '<span class="vl-s">' + esc(it.site) + (it.aviso ? ' <small class="muted">' + esc(it.aviso) + '</small>' : '') + '</span>'
+      + '<span class="vl-k">' + (it.codigo ? '<code>' + esc(it.codigo) + '</code>' : '<span class="muted">sem código lido</span>') + '</span>'
+      + '<span class="vl-a">' + (it.codigo && !/^iti/.test(it.id) ? '<button type="button" class="btn sm" data-vlcp="' + esc(k) + '">Copiar</button>' : '')
+      + (it.url || /^iti/.test(it.id) ? '<button type="button" class="btn sm primary" data-vlgo="' + esc(k) + '">' + (/^iti/.test(it.id) ? 'Validar assinatura' : it.codigo ? 'Copiar e abrir' : 'Abrir site') + '</button>' : '') + '</span></div>';
+  }).join('')).join('');
+  return '<h2>Validação dos documentos <span class="count">' + feitos + ' de ' + total + ' validados</span></h2><p class="muted" style="font-size:13px;margin-bottom:8px">Cada documento com o site certo e o código já lido do PDF. <b>Copiar e abrir</b> copia o código e abre o site: cole e confira. Marque quando validar.</p><div class="vl-l">' + linhas + '</div>';
+}
+function bindValidacao(){
+  const box = $('valid');
+  box.addEventListener('change', e => {
+    const c = e.target.closest('[data-vlok]'); if (!c) return;
+    S.valid = S.valid || {}; if (c.checked) S.valid[c.dataset.vlok] = new Date().toISOString(); else delete S.valid[c.dataset.vlok];
+    markDirty(); box.innerHTML = validacaoHTML();
+  });
+  box.addEventListener('click', e => {
+    const g = e.target.closest('[data-dxdoc]');
+    if (g) { const d = S.docs.find(x => x.id === g.dataset.dxdoc); if (d) { d.collapsed = false; goStep('ged'); setTimeout(() => { const el = document.querySelector('[data-doc="' + d.id + '"]'); if (el) el.scrollIntoView({block:'center'}); }, 60); } return; }
+    const b = e.target.closest('[data-vlcp],[data-vlgo]'); if (!b) return;
+    const k = b.dataset.vlcp || b.dataset.vlgo;
+    const achado = validacoesDoCaso().flatMap(x => x.itens.map(it => ({d:x.d, it}))).find(x => vKey(x.d, x.it) === k); if (!achado) return;
+    const it = achado.it;
+    if (b.dataset.vlcp) { copyText(it.codigo); return; }
+    if (/^iti/.test(it.id)) { validarAssinatura(it.fileKey); return; }
+    if (it.codigo) copyText(it.codigo);
+    if (it.url) window.open(it.url, '_blank', 'noopener');
   });
 }

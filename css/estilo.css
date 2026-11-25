@@ -418,3 +418,15 @@ body{font-variant-numeric:tabular-nums}
 @media (max-width:980px){.dx{grid-template-columns:22px 1fr}.dx-d,.dx-a{grid-column:2}}
 #docsExig h2{font-size:16px;margin-bottom:4px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 #docsExig .count{font:500 12.5px var(--font);color:var(--muted)}
+
+/* painel de validação (etapa Checklist) */
+#valid h2{font-size:16px;margin-bottom:4px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+#valid .count{font:500 12.5px var(--font);color:var(--muted)}
+.vl-l{border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:#fff}
+.vl{display:grid;grid-template-columns:28px minmax(0,1.2fr) minmax(0,1.2fr) minmax(0,1.1fr) auto;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line);font-size:13px}
+.vl:last-child{border-bottom:0}
+.vl.ok{background:var(--ok-soft)}
+.vl-c input{margin:0;width:18px;height:18px}
+.vl-k code{font:12.5px var(--mono);word-break:break-all}
+.vl-a{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+@media (max-width:980px){.vl{grid-template-columns:28px 1fr}.vl-s,.vl-k,.vl-a{grid-column:2}.vl-a{justify-content:flex-start}}

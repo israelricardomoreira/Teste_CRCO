@@ -702,6 +702,53 @@ function auditoria(R, I, campos, meta){
     const n = s => linhas.filter(l => l.status === s).length;
     return {linhas, extras, resumo:{total:linhas.length, ok:n('ok'), falta:n('falta'), vencida:n('vencida')}};
   }
-  return {VERSAO:'1.5.6', exigidosIncorporacao:exigidosIncorporacao, ordemDoc:ordemDoc, lerFichaDocs:lerFichaDocs, textoIlegivel:textoIlegivel, nomeLimpo:nomeLimpo, categoriaPeloNome:categoriaPeloNome, categoriaPeloTexto:categoriaPeloTexto, onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
+  /* ---------- Painel de validação: onde validar cada documento e o código já lido dele ---------- */
+  /* URLs do texto; reconstrói a que foi quebrada por espaço no fim da linha ("…/documento- eletronico/abc") */
+  function urlsDoTexto(txt){
+    const toks = String(txt || '').split(/\s+/), out = [];
+    for (let i = 0; i < toks.length; i++) {
+      if (!/^<?https?:\/\//i.test(toks[i])) continue;
+      let u = toks[i].replace(/^</, '').replace(/[>.,;)]+$/, '');
+      if (/[-\/]$/.test(toks[i]) && toks[i + 1] && /^[A-Za-z0-9\/._-]+$/.test(toks[i + 1])) u = toks[i] + toks[i + 1].replace(/[>.,;)]+$/, '');
+      out.push(u);
+    }
+    return out;
+  }
+  /* docs: [{id, nome, categoria, texto}]; ctx: {rtArt}. Devolve [{docId, itens:[{id, site, url, codigo, aviso}]}] */
+  function validacoesDocs(docs, ctx){
+    ctx = ctx || {};
+    const out = [];
+    for (const d of docs || []) {
+      const t = String(d.texto || '').replace(/\s+/g, ' '), itens = [], urls = urlsDoTexto(t);
+      const add = (id, site, url, codigo, aviso) => { if (url || codigo) itens.push({id, site, url:url || '', codigo:codigo || '', aviso:aviso || ''}); };
+      const g = re => { const m = t.match(re); return m ? m[1] : ''; };
+      const uDe = re => urls.find(u => re.test(u)) || '';
+      if (d.categoria === 'MATRICULA') {
+        const onr = uDe(/onr\.org\.br/i);
+        add('onr', 'ONR (assinador web)', onr, onr ? onr.replace(/\/+$/, '').split('/').pop() : '');
+        add('selo-tjgo', 'TJGO (selo eletrônico)', 'https://see.tjgo.jus.br/', g(/Selo (?:Digital|Eletr[ôo]nico[^:]{0,20}):?\s*(\d{15,})/i), 'em "Verificar selo"');
+      } else if (d.categoria === 'CERTIDAO') {
+        const L = lerCertidao(d.nome, t);
+        if (L.tipo === 'SEFAZ') add('sefaz', 'SEFAZ-GO (validar certidão)', 'https://www.sefaz.go.gov.br/Certidao/Validacao/default.asp', g(/NR\.? CERTID[ÃA]O:?\s*N?[º°o.]*\s*(\d{5,})/i));
+        else if (L.tipo === 'SEFAZDF') add('sefazdf', 'Receita do DF', uDe(/receita\.fazenda\.df/i), g(/CERTID[ÃA]O N[º°o.]*:?\s*(\d{8,})/i));
+        else if (L.tipo === 'TRAB') add('cndt', 'TST (CNDT)', 'https://cndt-certidao.tst.jus.br/', g(/Certid[ãa]o n[º°o.]*:?\s*([\d\/]+)/i), 'em "Validar certidão"');
+        else if (L.tipo === 'FED') add('fed', 'RFB/PGFN', uDe(/pgfn/i) || uDe(/rfb/i), g(/C[óo]digo de controle da certid[ãa]o:?\s*([A-Z0-9.]+)/i));
+        else if (L.tipo === 'SIMPL') add('junta', 'Junta Comercial do DF (validação visual)', 'https://portalservicos.jucis.df.gov.br/certidaoweb/validacaoPorVisualizacao.seam', g(/digite o n[º°o.]*\s*([A-Z]\d{9,})/i));
+        else if (L.tipo === 'TJDFT') add('tjdft', 'TJDFT (Nada Consta)', 'https://cnc.tjdft.jus.br/', g(/Selo digital de seguran[çc]a:\s*([\w.]*\d[\w.]*)/i), 'em "Validar certidão"');
+        else if (L.tipo === 'PROTDF') {
+          add('protdf', 'Central de Protesto do DF', uDe(/cartoriosdeprotestodf/i) || 'https://cartoriosdeprotestodf.com.br', g(/C[óo]digo de autentica[çc][ãa]o:?\s*([A-Z0-9-]+)/i));
+          add('selo-tjdft', 'Selo TJDFT (SIEX)', 'https://siex.tjdft.jus.br/siex/siexnet?visaoId=tjdf.siex.cadastro.consulta.apresentacao.VisaoConsultaPorCodigoNaInternet', g(/Selo Digital:?\s*(TJDFT\w+)/i), 'tem CAPTCHA');
+        } else if ((L.tipo === 'CIV' || L.tipo === 'CRIM') && /^TJGO/.test(L.orgao)) add('tjgo', 'TJGO (Projudi)', 'https://projudi.tjgo.jus.br/CertidaoPublica', g(/(?:Localizar pelo c[óo]digo|C[ÓO]DIGO DE AUTENTICA[ÇC][ÃA]O)\s*:?\s*(\d{8,})/i));
+        else if (L.tipo === 'CIVF' || L.tipo === 'CRIMF') add('trf1', 'Justiça Federal (TRF1)', uDe(/trf1/i), g(/c[óo]digo de valida[çc][ãa]o[^A-Z0-9]{0,40}([A-Z0-9]{8,})/i));
+      } else if (d.categoria !== 'DOCUMENTO_PESSOAL') {
+        const r = ordemDoc(d.nome, t, d.categoria)[0];
+        if (r === 30) add('art', 'CREA-GO (autenticidade da ART)', 'https://www3.crea-go.org.br/art1025/site/autenticidade_art.php', ctx.rtArt || g(/\b(10\d{11})\b/));
+        else if (r === 40) add('alvara', 'Prefeitura (validação do alvará)', uDe(/valid/i), '');
+      }
+      if (itens.length) out.push({docId:d.id, itens});
+    }
+    return out;
+  }
+  return {VERSAO:'1.5.7', validacoesDocs:validacoesDocs, urlsDoTexto:urlsDoTexto, exigidosIncorporacao:exigidosIncorporacao, ordemDoc:ordemDoc, lerFichaDocs:lerFichaDocs, textoIlegivel:textoIlegivel, nomeLimpo:nomeLimpo, categoriaPeloNome:categoriaPeloNome, categoriaPeloTexto:categoriaPeloTexto, onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
 })();
 if (typeof module !== 'undefined') module.exports = Motor;
