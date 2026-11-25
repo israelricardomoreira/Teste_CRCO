@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/ged.js: etapa 1 · documentos (GED): importar, agrupar, ordenar, ZIP e validação de assinatura */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.5.4';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/ged.js'] = '1.5.5';
 /* =====================================================================
    1. DOCUMENTOS (GED)
    ===================================================================== */
@@ -187,7 +187,7 @@ async function classificarIlegiveis(docs){
 }
 function renderGED(){ renderMatCard(); renderPages(); renderDocs(); }
 function renderPages(){
-  const g = $('pagesGrid'); $('pgCount').textContent = S.pages.length;
+  const g = $('pagesGrid'); $('pgCount').textContent = S.pages.length; $('step-ged').classList.toggle('sem-soltas', S.pages.length > 0 && S.pages.every(p => p.grouped));
   if (!S.pages.length) { g.innerHTML = '<div class="empty">Arraste PDFs ou imagens aqui<br><small>ou cole prints com Ctrl+V · Alt+I para importar</small></div>'; updateSel(); return; }
   g.innerHTML = S.pages.map((p, i) => `<div class="pcard${sel.has(p.id) ? ' sel' : ''}${p.grouped ? ' grp' : ''}" data-id="${p.id}" data-i="${i}" draggable="${!p.grouped}" tabindex="0" role="button" aria-pressed="${sel.has(p.id)}" aria-label="Página ${i + 1}: ${esc(p.name)}${p.grouped ? ' (já agrupada)' : ''}">
     <img src="${p.dataUrl}" alt="" style="transform:rotate(${p.rotation}deg)" loading="lazy">
@@ -205,22 +205,30 @@ function toggleSel(id, shift, idx){
   renderPages();
 }
 function refDate(){ return S.campos.reqData || S.meta.dataPrenotacao || todayISO(); }
+/* seção de cada documento na lista (a ordem já segue a lista do cartório) */
+function secaoDoc(d){
+  if (d.category === 'MATRICULA') return 'Matrícula';
+  if (d.category === 'CERTIDAO') return 'Certidões';
+  const r = Motor.ordemDoc(d.name, '', d.category)[0];
+  return r < 100 ? 'Requerimento, ART, alvará e declarações' : r < 140 ? 'Empresa e representante' : 'Projeto, memorial e instituição';
+}
 function renderDocs(){
   if (typeof syncCertidoesDoGED === 'function') syncCertidoesDoGED();
   const box = $('docsList'); $('docCount').textContent = S.docs.length; $('btnZip').disabled = !S.docs.length;
   if (!S.docs.length) { box.innerHTML = '<div class="empty">Selecione páginas à esquerda e clique em <b>Agrupar em documento</b> (Alt+A),<br>ou arraste as páginas para cá.</div>'; return; }
   const ref = refDate();
-  box.innerHTML = S.docs.map(d => {
+  let prevSec = ''; box.innerHTML = S.docs.map(d => {
+    const sec = secaoDoc(d), cab = sec !== prevSec ? '<h3 class="dsec">' + esc(sec) + '</h3>' : ''; prevSec = sec;
     const pgs = d.pageIds.map(pageById).filter(Boolean);
     const venc = d.validade && d.validade < ref;
     const sigKeys = [...new Set(pgs.filter(p => p.hasSig && FILES.has(p.fileKey)).map(p => p.fileKey))];
     const sigBtns = sigKeys.map((k, n) => `<button class="btn sm" type="button" data-act="sig" data-key="${k}" title="Copia o nome do PDF e abre o validador do ITI: cole (Ctrl+V) e tecle Enter">🔐 Validar${sigKeys.length > 1 ? ' ' + (n + 1) : ''}</button>`).join('');
-    return `<article class="dcard${d.collapsed ? ' col' : ''}" data-doc="${d.id}">
+    return cab + `<article class="dcard${d.collapsed ? ' col' : ''}" data-doc="${d.id}">
       <div class="dtop" draggable="true"><button class="dtog" type="button" data-act="tog" aria-expanded="${!d.collapsed}" aria-label="Expandir ou recolher">▾</button>
         <input class="dord" type="number" min="1" value="${d.order}" data-act="ord" aria-label="Ordem no GED">
-        <span class="dcat">${esc(catNome(d.category))}</span><span class="dname">${esc(d.name)}</span>${certInfoDoc(d)}<span class="count">${pgs.length} pág.${pgs.some(paginaConferida) ? ` · <span class="${pgs.every(paginaConferida) ? 'okt' : 'warnt'}">${pgs.filter(paginaConferida).length}/${pgs.length} conferidas</span>` : ''}</span>
-        ${sigBtns}${venc ? '<span class="badge err">vencido</span>' : ''}
-        <button class="btn sm" type="button" data-act="ver">Ver</button><button class="btn sm" type="button" data-act="anexar">Anexar arquivo</button><button class="btn sm danger" type="button" data-act="rm" aria-label="Desfazer documento">✕</button></div>
+        <span class="dcat">${esc(catNome(d.category))}</span><span class="dmain"><span class="dname">${esc(d.name)}</span>${certInfoDoc(d)}</span><span class="count">${pgs.length} pág.${pgs.some(paginaConferida) ? ` · <span class="${pgs.every(paginaConferida) ? 'okt' : 'warnt'}">${pgs.filter(paginaConferida).length}/${pgs.length} conferidas</span>` : ''}</span>
+        <span class="dacts">${sigBtns}${venc ? '<span class="badge err">vencido</span>' : ''}
+        <button class="btn sm" type="button" data-act="ver">Ver</button><button class="btn sm" type="button" data-act="anexar">Anexar arquivo</button><button class="btn sm danger" type="button" data-act="rm" aria-label="Desfazer documento">✕</button></span></div>
       <div class="dbody"><div class="dfields">
         <label>Tipo<select data-act="cat">${CATS.map(c => `<option value="${c}"${c === d.category ? ' selected' : ''}>${catNome(c)}</option>`).join('')}</select></label>
         <label class="grow">Descrição GED<input data-act="name" value="${esc(d.name)}" list="histGED" autocomplete="off"></label>
@@ -315,6 +323,7 @@ function validarAssinatura(fileKey){
 function bindGED(){
   /* GED */
   $('btnImport').onclick = () => $('fileIn').click();
+  if ($('btnImport2')) $('btnImport2').onclick = () => $('fileIn').click();
   if ($('btnOrdem')) $('btnOrdem').onclick = () => { ordenarPelaLista(S.docs); renderGED(); markDirty(); toast('Documentos na ordem da lista do cartório.'); };
   if ($('chkAuto')) { $('chkAuto').checked = lsGet('qcrco_autogrupo', true) !== false; $('chkAuto').onchange = () => lsSet('qcrco_autogrupo', $('chkAuto').checked); }
   $('fileIn').onchange = e => { handleFiles(e.target.files, {}); e.target.value = ''; };

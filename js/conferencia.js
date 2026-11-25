@@ -1,7 +1,7 @@
 /* Qualificador CRCO — js/conferencia.js: etapa 2 · conferência. Documento grande com ferramentas (js/leitor.js),
  * ficha ao lado (ou embaixo, em tela em pé) e opção de abrir o documento numa janela separada. */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/conferencia.js'] = '1.5.4';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/conferencia.js'] = '1.5.5';
 
 const CV = {docId:'', i:0};                 /* página aberta na Conferência (compartilhada com a janela separada) */
 const CMP = {docId:'', i:0};                /* página do "Comparar" */
@@ -145,6 +145,38 @@ async function renderPDFAlta(p, largura){
   return c;
 }
 /* ---------- certidões: as do GED entram sozinhas ---------- */
+/* Certidões na Conferência: lista compacta por pessoa. Cada certidão é uma linha-resumo que abre para ajustar;
+ * as que pedem atenção (vencida, sem data, repetida, positiva) já vêm abertas. */
+function certidoesHTML(){
+  if (!S.certidoes.length) return '<p class="muted" style="font-size:13px">Nenhuma certidão. As que você classificar como Certidão no GED entram aqui sozinhas.</p>';
+  const dup = certDuplicadas(), ref = refDate(), grupos = new Map();
+  S.certidoes.forEach(c => { const p = c.pessoa && c.pessoa.doc ? c.pessoa : null, k = p ? p.doc : '—'; if (!grupos.has(k)) grupos.set(k, {p, l:[]}); grupos.get(k).l.push(c); });
+  const ordemGED = c => { const d = S.docs.find(x => x.id === c.docId); return d ? d.order : 999; };
+  grupos.forEach(g => g.l.sort((a, b) => ordemGED(a) - ordemGED(b)));
+  const pj = g => (g.p && g.p.doc.length === 18 ? 0 : 1);
+  const rotulo = g => g.p ? (g.p.doc.length === 18 ? 'Empresa' : 'Pessoa física') + ' · ' + (g.p.nome || g.p.doc) + (g.p.nome ? ' (' + g.p.doc + ')' : '') : 'Pessoa não identificada';
+  const linha = c => {
+    const d = c.docId && S.docs.find(x => x.id === c.docId), dp = dup[c.id];
+    const venc = c.validade && c.validade < ref, semData = !c.emissao || !c.validade, atencao = venc || semData || (dp && !dp.maisNova) || c.res !== 'Negativa';
+    const tipos = Object.entries(CERT).map(([k, v]) => '<option value="' + k + '"' + (k === c.tipo ? ' selected' : '') + '>' + esc(v[0]) + '</option>').join('');
+    const ress = ['Negativa', 'Positiva', 'Positiva com efeito de negativa'].map(o => '<option' + (o === c.res ? ' selected' : '') + '>' + o + '</option>').join('');
+    return '<details class="cert' + (atencao ? ' atencao' : '') + '"' + (atencao ? ' open' : '') + '><summary>'
+      + '<span class="cert-n">' + (d ? String(d.order).padStart(2, '0') : '·') + '</span>'
+      + '<span class="cert-t">' + esc((CERT[c.tipo] || ['Outra'])[0]) + (c.orgao ? ' <small>' + esc(c.orgao) + '</small>' : '') + (c.res !== 'Negativa' ? ' <b class="errt">' + esc(c.res) + '</b>' : '') + '</span>'
+      + '<span class="cert-d">' + (c.emissao ? fmtDate(c.emissao) : 'sem data') + ' → ' + (c.validade ? fmtDate(c.validade) : '—') + '</span>'
+      + '<span class="cert-s" data-certst="' + c.id + '"></span></summary>'
+      + '<div class="cert-b"><div class="cert-i">' + (d ? '<button type="button" class="srcb" data-godoc="' + d.id + '" title="Abrir a certidão">📄 ' + esc(d.name) + '</button> ' : '') + certInfoHTML(c).replace(/<br>$/, '') + '</div>'
+      + '<div class="cert-f"><label>Tipo<select data-bind="ct:' + c.id + ':tipo" aria-label="Tipo">' + tipos + '</select></label>'
+      + (c.tipo === 'OUTRA' ? '<label>Descrição<input data-bind="ct:' + c.id + ':obs" value="' + esc(c.obs) + '" placeholder="Descreva a certidão"></label>' : '')
+      + '<label>Resultado<select data-bind="ct:' + c.id + ':res" aria-label="Resultado">' + ress + '</select></label>'
+      + '<label>Emissão<input type="date" data-bind="ct:' + c.id + ':emissao" value="' + esc(c.emissao) + '" aria-label="Emissão"></label>'
+      + '<label>Válida até<input type="date" data-bind="ct:' + c.id + ':validade" value="' + esc(c.validade) + '" aria-label="Válida até"></label>'
+      + '<label>ou nº de dias<input class="dias" type="number" min="1" max="999" data-diasct="' + c.id + '" title="Certidão que diz &quot;validade de X dias&quot;: digite os dias e a data é calculada a partir da emissão" aria-label="Validade em dias"></label>'
+      + (d ? '' : '<button class="btn sm danger" type="button" data-rmcert="' + c.id + '" aria-label="Remover certidão">Remover</button>') + '</div></div></details>';
+  };
+  return '<p class="muted" style="font-size:12px;margin-bottom:6px">As certidões do GED entram aqui sozinhas, com tipo, órgão, pessoa e datas lidos do documento. Abra uma linha para ajustar; as que pedem atenção já vêm abertas.</p>'
+    + [...grupos.values()].sort((a, b) => pj(a) - pj(b)).map(g => '<h4 class="cert-g">' + esc(rotulo(g)) + ' <span class="count">' + g.l.length + '</span></h4><div class="cert-l">' + g.l.map(linha).join('') + '</div>').join('');
+}
 /* certidões do mesmo tipo, órgão e pessoa: avisa quais estão repetidas e qual é a mais nova */
 function certDuplicadas(){
   const g = {}, dup = {};
@@ -165,7 +197,8 @@ function certInfoDoc(d){
   const c = S.certidoes.find(x => x.docId === d.id); if (!c) return '';
   const dup = certDuplicadas()[c.id], p = c.pessoa;
   const txt = [c.orgao, p && (p.nome || p.doc), c.emissao ? 'emitida ' + fmtDate(c.emissao) : ''].filter(Boolean).join(' · ');
-  return (txt ? ' <small class="muted">· ' + esc(txt) + '</small>' : '') + (dup ? (dup.maisNova ? ' <span class="badge warn">repetida · mais nova</span>' : ' <span class="badge err">repetida</span>') : '');
+  const sub = [txt ? esc(txt) : '', dup ? (dup.maisNova ? '<span class="badge warn">repetida · mais nova</span>' : '<span class="badge err">repetida</span>') : ''].filter(Boolean).join(' ');
+  return sub ? '<small class="dsub">' + sub + '</small>' : '';
 }
 function syncCertidoesDoGED(){
   const docs = S.docs.filter(d => d.category === 'CERTIDAO'), ids = new Set(docs.map(d => d.id));
@@ -258,13 +291,7 @@ function renderConfForm(){
       <td><input data-bind="p:${p.id}:doc" value="${esc(p.doc)}" aria-label="CPF ou CNPJ"><div class="fmeta"><span class="dchk">${docStatus(p.doc)}</span></div></td>
       <td><button class="btn sm danger" type="button" data-rmparte="${p.id}" aria-label="Remover parte">✕</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted" style="font-size:13px">Nenhuma parte lançada.</p>';
   h += `<h3 class="grp-h">Certidões <button class="btn sm" type="button" id="addCert" style="margin-left:auto">+ Certidão</button></h3>`;
-  h += S.certidoes.length ? `<p class="muted" style="font-size:12px;margin-bottom:6px">As certidões do GED entram aqui sozinhas (tipo, resultado e datas lidos do texto; a validade é a mesma do GED). Confira e ajuste.</p><table class="lt"><thead><tr><th>Tipo</th><th>Resultado</th><th>Emissão</th><th>Válida até</th><th>Situação</th><th></th></tr></thead><tbody>${S.certidoes.map(c => { const d = c.docId && S.docs.find(x => x.id === c.docId); return `<tr>
-      <td>${d ? `<button type="button" class="srcb" data-godoc="${d.id}" title="Abrir a certidão">📄 ${String(d.order).padStart(2, '0')} ${esc(d.name)}</button><br>${certInfoHTML(c)}` : ''}<select data-bind="ct:${c.id}:tipo" aria-label="Tipo">${Object.entries(CERT).map(([k, v]) => `<option value="${k}"${k === c.tipo ? ' selected' : ''}>${v[0]}</option>`).join('')}</select>${c.tipo === 'OUTRA' ? `<input data-bind="ct:${c.id}:obs" value="${esc(c.obs)}" placeholder="Descreva a certidão" style="margin-top:4px">` : ''}</td>
-      <td><select data-bind="ct:${c.id}:res" aria-label="Resultado">${['Negativa','Positiva','Positiva com efeito de negativa'].map(o => `<option${o === c.res ? ' selected' : ''}>${o}</option>`).join('')}</select></td>
-      <td><input type="date" data-bind="ct:${c.id}:emissao" value="${esc(c.emissao)}" aria-label="Emissão"></td>
-      <td><input type="date" data-bind="ct:${c.id}:validade" value="${esc(c.validade)}" aria-label="Válida até"><input class="dias" type="number" min="1" max="999" data-diasct="${c.id}" placeholder="ou nº de dias" title="Certidão que diz &quot;validade de X dias&quot;: digite os dias e a data é calculada a partir da emissão" aria-label="Validade em dias"></td>
-      <td data-certst="${c.id}" style="font-size:12px"></td>
-      <td>${d ? '<span class="muted" title="Vem do GED: para tirar, desfaça o documento lá">GED</span>' : `<button class="btn sm danger" type="button" data-rmcert="${c.id}" aria-label="Remover certidão">✕</button>`}</td></tr>`; }).join('')}</tbody></table>` : '<p class="muted" style="font-size:13px">Nenhuma certidão. As que você classificar como Certidão no GED entram aqui sozinhas.</p>';
+  h += certidoesHTML();
   $('confForm').innerHTML = h;
   refreshCertStatus(); updateConfProgress(); aplicarValidacoes(); if (CONFVISTA.resumo) renderResumo();
   if (activeEl && !document.body.contains(activeEl)) activeEl = null;

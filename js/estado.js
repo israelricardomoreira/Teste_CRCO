@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/estado.js: estado da análise, salvar/abrir (.gori), importação da Calculadora GO-RI v3 e ligação dos campos */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/estado.js'] = '1.5.4';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/estado.js'] = '1.5.5';
 function freshInc(){
   return {blOn:false, blN:'2', blTipo:'Letras', denom:'APARTAMENTO', destinacao:'residenciais', precFI:'6',
     pavs:[{id:uid(),nome:'Térreo',qtd:'1',und:'3',inicio:'101'},{id:uid(),nome:'Superior',qtd:'1',und:'3',inicio:'201'}],
@@ -15,7 +15,7 @@ let S = freshState();
 const FILES = new Map();
 let sel = new Set(), lastIdx = null, drag = null, dirty = false, autosaveT = null, curStep = 'ged';
 
-function markDirty(){ dirty = true; clearTimeout(autosaveT); autosaveT = setTimeout(autosave, 1200); }
+function markDirty(){ dirty = true; if (typeof renderCaseStrip === 'function') { cancelAnimationFrame(window.__csRaf); window.__csRaf = requestAnimationFrame(renderCaseStrip); } clearTimeout(autosaveT); autosaveT = setTimeout(autosave, 1200); }
 function snapshot(){
   return {v:4, app:'qualificador-crco', salvoEm:new Date().toISOString(), meta:S.meta, campos:S.campos, src:S.src, ok:S.ok,
     partes:S.partes, certidoes:S.certidoes, checklist:S.checklist, exig:S.exig, nota:S.nota, inc:S.inc, mat:S.mat, anot:S.anot || {}, aprend:S.aprend ? Object.assign({}, S.aprend, {_t:null, _etapa:null}) : null,

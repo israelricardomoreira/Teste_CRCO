@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/matricula.js: leitura automática da matrícula (preenche a ficha e mostra titular, atos e ônus) */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.5.4';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.5.5';
 
 /* Texto da matrícula: documento MATRICULA do GED (ou o que está aberto na Conferência), senão o usuário cola */
 function matTextoDoGED(){
@@ -63,6 +63,13 @@ function aplicarMatricula(texto, fonteGED = $('dlgMat')._fonte){
   toast(`Matrícula lida: ${preenchidos.length} campo(s) preenchido(s)` + (mantidos.length ? `; mantive o que já estava em ${mantidos.map(nomes).join(', ')} (veja o resumo).` : '. Confira e marque "conferido".'));
   return true;
 }
+/* avisos da matrícula: o que pede atenção fica à vista; o que está ok vira uma linha que abre */
+function listaAvisosHTML(itens){
+  const ok = itens.filter(([c]) => c === 'ok'), ruim = itens.filter(([c]) => c !== 'ok');
+  const li = ([c, t]) => '<li class="' + c + '">' + esc(t) + '</li>';
+  return (ruim.length ? '<ul class="aud" style="margin-bottom:8px">' + ruim.map(li).join('') + '</ul>' : '')
+    + (ok.length ? '<details class="aud-ok"><summary>✓ ' + ok.length + ' conferência(s) com a matrícula ok</summary><ul class="aud">' + ok.map(li).join('') + '</ul></details>' : '');
+}
 function matSituacao(a){
   if (a.onus && a.cancelado) return `<span class="badge ok">cancelado (${esc(a.canceladoPor)})</span>`;
   if (a.onus) return '<span class="badge err">em aberto</span>';
@@ -102,7 +109,7 @@ function preencherFichaDosDocs(silencioso){
 }
 /* Cartão no topo da ficha de conferência */
 function matResumoHTML(){
-  const btnDocs = S.meta.tipoAto === 'INCORPORACAO' ? '<div class="row" style="margin-bottom:8px"><button class="btn sm" type="button" data-mat="docs">📑 Preencher a ficha dos documentos</button><span class="muted" style="font-size:12px">Lê requerimento, alvará e ART (ART escaneada: rode o OCR antes).</span></div>' : '';
+  const btnDocs = S.meta.tipoAto === 'INCORPORACAO' ? '<div class="row" style="margin-bottom:8px"><button class="btn sm" type="button" data-mat="docs" title="Lê requerimento, alvará e ART. ART escaneada: rode o OCR antes.">📑 Preencher a ficha dos documentos</button></div>' : '';
   return btnDocs + matResumoHTML2();
 }
 function matResumoHTML2(){
@@ -117,15 +124,10 @@ function matResumoHTML2(){
   const temParte = T && S.partes.some(p => (T.doc && onlyDigits(p.doc) === onlyDigits(T.doc)) || String(p.nome || '').toUpperCase() === String(T.nome).toUpperCase());
   return `<h3 class="grp-h">Matrícula nº ${esc(R.numero || '—')} <span class="muted" style="font-weight:400;text-transform:none;letter-spacing:0">· ${esc(S.mat.fonte)}</span>
       ${S.mat.texto ? '<button class="btn sm" type="button" data-mattxt="" style="margin-left:auto">Ver o texto lido</button>' : ''}<button class="btn sm" type="button" data-mat="ler"${S.mat.texto ? '' : ' style="margin-left:auto"'}>Ler de novo</button></h3>
-    <div class="fgrid" style="margin-bottom:8px">
-      <div class="fld"><label>Titular atual</label><div><b>${esc(T ? (T.nomeAtual || T.nome) : '—')}</b>${T && T.doc ? `<br><small>${esc(T.doc)} · ${docStatus(T.doc)}</small>` : ''}${T ? `<br><small class="muted">desde ${esc(T.ato)}</small>` : ''}</div>
-        ${T && !temParte ? `<button class="btn sm" type="button" data-mat="parte" style="margin-top:4px">+ Adicionar como parte</button>` : ''}</div>
-      <div class="fld"><label>Na abertura</label><div>${esc(R.proprietarioInicial ? R.proprietarioInicial.nome : '—')}<br><small class="muted">aberta em ${esc(fmtDate(R.abertura) || '—')}</small></div></div>
-      <div class="fld wide"><label>Registro anterior (abertura)</label><div style="font-size:13px">${esc(R.registroAnterior || '—')}</div></div>
-    </div>
-    <ul class="aud" style="margin-bottom:8px">${cruz.concat(dif).map(([c, t]) => `<li class="${c}">${esc(t)}</li>`).join('')}</ul>
+    <p class="mat-tit"><span class="muted">Titular atual</span> <b>${esc(T ? (T.nomeAtual || T.nome) : '—')}</b>${T && T.doc ? ` <small>${esc(T.doc)} · ${docStatus(T.doc)}</small>` : ''}${T ? ` <small class="muted">desde ${esc(T.ato)}</small>` : ''}${T && !temParte ? ' <button class="btn sm" type="button" data-mat="parte">+ Adicionar como parte</button>' : ''}</p>
+    ${listaAvisosHTML(cruz.concat(dif))}
     <details style="margin-bottom:8px"><summary style="cursor:pointer;font-weight:600;font-size:13px">${R.atos.length} ato(s) na matrícula${R.cci ? ` · CCI ${esc(R.cci)}` : ''}${R.inscricao ? ` · inscrição ${esc(R.inscricao)}` : ''}</summary>
-      <table class="lt" style="margin-top:6px"><thead><tr><th>Ato</th><th>Natureza</th><th>Protocolo</th><th>Data</th><th>Situação</th></tr></thead><tbody>
+      <p class="muted" style="font-size:12px;margin-top:6px">Na abertura: ${esc(R.proprietarioInicial ? R.proprietarioInicial.nome : '—')} (aberta em ${esc(fmtDate(R.abertura) || '—')}) · Registro anterior: ${esc(R.registroAnterior || '—')}</p><table class="lt" style="margin-top:6px"><thead><tr><th>Ato</th><th>Natureza</th><th>Protocolo</th><th>Data</th><th>Situação</th></tr></thead><tbody>
       ${R.atos.map(a => `<tr><td style="white-space:nowrap"><b>${esc(a.rot)}</b></td><td>${esc(a.natureza)}</td><td>${esc(a.protocolo)}${a.dataProt ? `<br><small class="muted">${esc(a.dataProt)}</small>` : ''}</td><td>${esc(fmtDate(a.data))}</td><td>${matSituacao(a)}</td></tr>`).join('')}
       </tbody></table></details>`;
 }
