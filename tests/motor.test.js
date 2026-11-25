@@ -274,3 +274,12 @@ test('lerFichaDocs: data da ART quando a tabela vem em duas linhas (cabeçalho e
   const ocr = 'Anotação de Responsabilidade Técnica ART CREA-GO ART Obra ou serviço 1020260000001 Valor da ART: lRegistradaem [ValorPago — |NossoNumero — SSituição — | —SNãopossui |[NãoPossu\n285,59 | 23/06/2026 |R$ 285,59 28320690126190382 — Registrada/OK [Livro de Ordem CAT';
   assert.equal(M.lerFichaDocs([{id: 'c', texto: ocr}]).rtArtData.valor, '2026-06-23');
 });
+test('lerMatricula: adquirente na forma "ao comprador NOME, ..." (atos antigos) não gera alerta e vira titular', () => {
+  const t = 'IMÓVEL: Lote 1, da Quadra 2, situado nesta cidade, com a área de 360,00m², confrontando pela frente com a Rua 1, com 12,00 metros. PROPRIETÁRIA: ANTIGA LTDA, CGC nº 00.000.000/0001-91, com sede em Brasília-DF. Dou fé. Cidade Ocidental-GO, 27 de dezembro de 2012. O Oficial Respondente.\n----\n'
+    + 'R-1-9.999 - Protocolo nº 8.168 datado de 26/02/2013. COMPRA E VENDA. Por Escritura Pública de Venda e Compra, foi o imóvel vendido por sua proprietária, acima qualificada, ao comprador FULANO DE TAL, brasileiro, viúvo, advogado, portador do RG nº 1.234.567 SSP-DF e CPF nº 111.444.777-35, residente e domiciliado em Brasília-DF, pelo preço de R$ 30.000,00. Dou fé. Cidade Ocidental-GO, 01 de março de 2013. O Oficial Respondente\n----\n'
+    + 'R-2-9.999 - Protocolo nº 14.819 datado de 06/01/2014. COMPRA E VENDA. Por Escritura Pública, foi o imóvel vendido por seu proprietário acima qualificado, a compradora BELTRANA DE TAL, brasileira, divorciada, portadora da CI nº 790.256 SSP-DF e CPF nº 529.982.247-25, residente em Brasília, pelo preço de R$ 31.000,00. Dou fé. Cidade Ocidental-GO, 22 de Janeiro de 2014. O Oficial Respondente.\n----\n';
+  const R = M.lerMatricula(t);
+  assert.deepEqual(R.alertas, []);
+  assert.equal(R.titular.nome, 'BELTRANA DE TAL');
+  assert.equal(R.titular.ato, 'R-2');
+});

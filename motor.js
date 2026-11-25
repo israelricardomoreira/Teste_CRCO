@@ -224,6 +224,7 @@ function auditoria(R, I, campos, meta){
       } else if (ONUS.test(NAT)) ato.onus = true;
       if (p.tipo === 'R' && TRANSMISSAO.test(NAT)) {
         const ad = corpo.match(/(?:vend\w*|transmit\w*|do\w+|permut\w*|cede\w*|adjudic\w*|arremat\w*)[^:]{0,120}?(?:para|a favor de|em favor de|ao?s?)\s*:\s*(.+?)(?:,\s*pelo pre[cç]o|,\s*pelo valor|\.\s|$)/i)
+          || corpo.match(/(?:ao comprador[a]?|à compradora|a compradora|ao adquirente|à adquirente)\s+(.+?)(?:,\s*pelo pre[cç]o|,\s*pelo valor|\.\s|$)/i)
           || corpo.match(/(?:adquirente|outorgad[oa] compradora?|comprador[a]?|donat[aá]ri[oa]|arrematante|adjudicat[aá]ri[oa])\s*:\s*(.+?)(?:\.\s|$)/i);
         if (ad) { R.titular = Object.assign(nomeEDoc(ad[1]), {ato:rot}); ato.adquirente = R.titular.nome; }
         else R.alertas.push(`${rot}: transmissão sem adquirente identificado — conferir o titular atual manualmente.`);
@@ -579,6 +580,6 @@ function auditoria(R, I, campos, meta){
     for (const k of Object.keys(cand)) { const c = cand[k].slice().sort((a, b) => a.prio - b.prio)[0]; out[k] = {valor:c.valor, docId:c.docId, busca:c.busca, regra:c.regra}; }
     return out;
   }
-  return {VERSAO:'1.5.2', lerFichaDocs:lerFichaDocs, textoIlegivel:textoIlegivel, nomeLimpo:nomeLimpo, categoriaPeloNome:categoriaPeloNome, categoriaPeloTexto:categoriaPeloTexto, onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
+  return {VERSAO:'1.5.3', lerFichaDocs:lerFichaDocs, textoIlegivel:textoIlegivel, nomeLimpo:nomeLimpo, categoriaPeloNome:categoriaPeloNome, categoriaPeloTexto:categoriaPeloTexto, onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
 })();
 if (typeof module !== 'undefined') module.exports = Motor;

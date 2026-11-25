@@ -2,7 +2,7 @@
  * checklist, exigências e tempos, e baixa tudo ANONIMIZADO num .json separado (junto com o ZIP do GED).
  * Serve para melhorar a leitura dos documentos a cada versão. Nada é enviado: o arquivo só é baixado. */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/aprendizado.js'] = '1.5.2';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/aprendizado.js'] = '1.5.3';
 
 function freshAprend(){ return {inicio:new Date().toISOString(), sug:{}, manual:{}, notas:[], tempos:{}, ckModelo:null}; }
 function AP(){ if (!S.aprend) S.aprend = freshAprend(); return S.aprend; }

@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/matricula.js: leitura automática da matrícula (preenche a ficha e mostra titular, atos e ônus) */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.5.2';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/matricula.js'] = '1.5.3';
 
 /* Texto da matrícula: documento MATRICULA do GED (ou o que está aberto na Conferência), senão o usuário cola */
 function matTextoDoGED(){
@@ -43,16 +43,17 @@ function aplicarMatricula(texto, fonteGED = $('dlgMat')._fonte){
   const f = fonteGED, pid = f && f.pgs[0] ? f.pgs[0].id : '';
   const rotulo = `Matrícula ${R.numero || ''}`.trim() + (pid ? '' : ' (texto colado)');
   const valores = {matricula:R.numero, areaTerreno:R.area, descricao:R.imovel, confrontacao:confrontacoesTexto(R), cep:R.cep, regAnterior:R.ultimoAto};
-  const preenchidos = [], mantidos = [];
+  /* campo que o próprio programa preencheu numa leitura anterior (matrícula antiga) e ninguém confirmou pode ser atualizado; o que a pessoa digitou ou conferiu fica */
+  const preenchidos = [], mantidos = [], prevM = S.autoMat || (S.autoMat = {});
   const fonte = fonteDe(pid);
   Object.entries(valores).forEach(([k, v]) => {
     if (!v) return;
     const atual = String(S.campos[k] || '').trim();
-    registrarSugestao('c:' + k, v, {regra:'matricula.' + k, fonte, contexto:trecho(texto, k === 'confrontacao' ? R.confrontacoes.map(c => c.com)[0] : k === 'regAnterior' ? R.ultimoAtoCompleto : v), naoAplicado:!!atual});
-    if (!atual) {
+    registrarSugestao('c:' + k, v, {regra:'matricula.' + k, fonte, contexto:trecho(texto, k === 'confrontacao' ? R.confrontacoes.map(c => c.com)[0] : k === 'regAnterior' ? R.ultimoAtoCompleto : v), naoAplicado:!(!atual || (prevM[k] === atual && !S.ok['c:' + k]))});
+    if (!atual || (prevM[k] === atual && !S.ok['c:' + k])) {
       const busca = k === 'confrontacao' ? 'confrontando' : k === 'regAnterior' ? R.ultimoAtoCompleto : k === 'descricao' ? R.imovel.split(/\s+/).slice(0, 4).join(' ') : v;
       const onde = f ? localizarNasPaginas(f.pgs, busca) : null;
-      S.campos[k] = v; S.src['c:' + k] = {pageId:onde ? onde.pageId : pid, label:rotulo, reg:onde ? onde.reg : null}; S.ok['c:' + k] = false; preenchidos.push(k);
+      S.campos[k] = v; S.src['c:' + k] = {pageId:onde ? onde.pageId : pid, label:rotulo, reg:onde ? onde.reg : null}; S.ok['c:' + k] = false; prevM[k] = v; preenchidos.push(k);
     }
     else if (atual !== v) mantidos.push(k);
   });
@@ -88,7 +89,14 @@ function preencherFichaDosDocs(silencioso){
     registrarSugestao('c:' + k, s.valor, {regra:'docs.' + s.regra, fonte:fonteDe(pid), contexto:trecho(pgs.map(pageText).join(' '), s.busca), naoAplicado:false});
     S.campos[k] = s.valor; S.src['c:' + k] = {pageId:pid, label:d.name, reg:onde ? onde.reg : null}; S.ok['c:' + k] = false; prev[k] = s.valor; feitos.push(k);
   });
-  if (feitos.length) { markDirty(); renderConfForm(); toast('Ficha preenchida pelos documentos: ' + feitos.length + ' campo(s). Confira e marque "conferido".'); }
+  /* incorporação: o incorporador do requerimento entra nas Partes (só ele; outras partes, se houver, são lançadas à mão) */
+  if (S.meta.tipoAto === 'INCORPORACAO' && S.campos.incNome && S.campos.incCnpj && !S.partes.some(p => onlyDigits(p.doc) === onlyDigits(S.campos.incCnpj))) {
+    S.partes.push({id:uid(), papel:'Incorporador', nome:S.campos.incNome, doc:S.campos.incCnpj}); feitos.push('parte');
+  }
+  if (feitos.length) {
+    markDirty(); renderConfForm();
+    toast('Ficha preenchida pelos documentos: ' + feitos.filter(k => k !== 'parte').length + ' campo(s)' + (feitos.includes('parte') ? ' e o incorporador nas Partes' : '') + '. Confira e marque "conferido".');
+  }
   else if (!silencioso) toast('A ficha já está com tudo o que os documentos trazem.');
   return feitos.length;
 }
@@ -103,6 +111,9 @@ function matResumoHTML2(){
   const dif = [['matricula', R.numero], ['cep', R.cep], ['regAnterior', R.ultimoAto]]
     .filter(([k, v]) => v && S.campos[k] && String(S.campos[k]).trim() !== v)
     .map(([k, v]) => ['warn', `${(CAMPOS.find(c => c.k === k) || {l:k}).l}: na ficha "${S.campos[k]}", na matrícula "${v}".`]);
+  /* titular da matrícula diferente da incorporadora do requerimento: matrícula desatualizada ou falta ato de transmissão */
+  const incDoc = onlyDigits(S.campos.incCnpj || '');
+  if (T && T.doc && incDoc && onlyDigits(T.doc) !== incDoc) dif.push(['err', `Titular atual da matrícula (${T.nomeAtual || T.nome}, ${T.doc}) não é a incorporadora do requerimento (${S.campos.incNome || S.campos.incCnpj}). Confira se a matrícula é a mais recente.`]);
   const temParte = T && S.partes.some(p => (T.doc && onlyDigits(p.doc) === onlyDigits(T.doc)) || String(p.nome || '').toUpperCase() === String(T.nome).toUpperCase());
   return `<h3 class="grp-h">Matrícula nº ${esc(R.numero || '—')} <span class="muted" style="font-weight:400;text-transform:none;letter-spacing:0">· ${esc(S.mat.fonte)}</span>
       ${S.mat.texto ? '<button class="btn sm" type="button" data-mattxt="" style="margin-left:auto">Ver o texto lido</button>' : ''}<button class="btn sm" type="button" data-mat="ler"${S.mat.texto ? '' : ' style="margin-left:auto"'}>Ler de novo</button></h3>

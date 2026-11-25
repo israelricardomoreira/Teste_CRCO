@@ -1,7 +1,7 @@
 /* Qualificador CRCO — js/conferencia.js: etapa 2 · conferência. Documento grande com ferramentas (js/leitor.js),
  * ficha ao lado (ou embaixo, em tela em pé) e opção de abrir o documento numa janela separada. */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/conferencia.js'] = '1.5.2';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/conferencia.js'] = '1.5.3';
 
 const CV = {docId:'', i:0};                 /* página aberta na Conferência (compartilhada com a janela separada) */
 const CMP = {docId:'', i:0};                /* página do "Comparar" */
