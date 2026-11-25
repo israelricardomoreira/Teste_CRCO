@@ -643,6 +643,65 @@ function auditoria(R, I, campos, meta){
     if (/alvara de construcao/.test(a)) return [40, 1];
     return [500, 0];
   }
-  return {VERSAO:'1.5.5', ordemDoc:ordemDoc, lerFichaDocs:lerFichaDocs, textoIlegivel:textoIlegivel, nomeLimpo:nomeLimpo, categoriaPeloNome:categoriaPeloNome, categoriaPeloTexto:categoriaPeloTexto, onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
+  /* ---------- Documentos exigidos na incorporação (a lista do cartório) conferidos contra o que está no GED ---------- */
+  /* docs: [{id, nome, categoria, texto}]; ctx: {incCnpj, incSede, ref}. Devolve {linhas, extras, resumo}.
+   * Cada linha: {id, grupo, rotulo, status:'ok'|'falta'|'vencida', docIds, obs, texto, fund} (texto = o que vai na exigência). */
+  function exigidosIncorporacao(docs, ctx){
+    ctx = ctx || {};
+    const ref = ctx.ref || '', cnpj = String(ctx.incCnpj || '').replace(/\D/g, '');
+    const uf = ((String(ctx.incSede || '').match(/[-\/\s,]([A-Za-z]{2})\.?\s*$/) || [])[1] || '').toUpperCase();
+    const lista = (docs || []).map(d => ({d, rank:ordemDoc(d.nome, d.texto, d.categoria)[0], cert:d.categoria === 'CERTIDAO' ? lerCertidao(d.nome, d.texto) : null}));
+    const daInc = x => !cnpj || !x.cert.pessoa || !x.cert.pessoa.doc || x.cert.pessoa.doc.replace(/\D/g, '') === cnpj;
+    const usados = new Set(), linhas = [];
+    const br = iso => { const m = String(iso || '').match(/(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '/' + m[2] + '/' + m[1] : ''; };
+    const fundB = 'art. 32, alínea "b", da Lei 4.591/64';
+    const add = (id, grupo, rotulo, achados, texto, fund) => {
+      let status = achados.length ? 'ok' : 'falta', obs = '';
+      if (achados.length) achados.forEach(x => usados.add(x.d.id));
+      const cert = achados.filter(x => x.cert).sort((a, b) => String(b.cert.emissao).localeCompare(String(a.cert.emissao)))[0];
+      if (cert) {
+        const v = cert.cert.validade;
+        if (!v) obs = 'sem validade informada';
+        else if (ref && v < ref) { status = 'vencida'; obs = 'venceu em ' + br(v); }
+        else obs = 'válida até ' + br(v);
+      }
+      linhas.push({id, grupo, rotulo, status, docIds:achados.map(x => x.d.id), obs, texto, fund:fund || ''});
+    };
+    const porRank = r => lista.filter(x => !x.cert && x.rank === r);
+    const porCert = (...t) => lista.filter(x => x.cert && t.includes(x.cert.tipo) && daInc(x));
+    const G1 = 'Requerimento, ART, alvará e declarações', G2 = 'Certidões da incorporadora', G3 = 'Empresa e representante', G4 = 'Projeto, memorial e instituição';
+    add('req', G1, 'Requerimento de registro de incorporação', porRank(10), 'do requerimento de registro de incorporação');
+    add('pmcmv', G1, 'Declaração PMCMV', porRank(20), 'da declaração relativa ao Programa Minha Casa Minha Vida (PMCMV)');
+    add('art', G1, 'ART ou RRT', porRank(30), 'da ART ou RRT do projeto e da obra');
+    add('alvara', G1, 'Alvará de construção', porRank(40), 'do alvará de construção');
+    add('carencia', G1, 'Declaração de prazo de carência', porRank(51), 'da declaração de prazo de carência', 'art. 32, alínea "n", da Lei 4.591/64');
+    add('quota', G1, 'Declaração de quota-parte entregue em pagamento do terreno', porRank(52), 'da declaração de quota-parte do empreendimento a ser entregue em pagamento do terreno');
+    add('fracao', G1, 'Declaração de fração ideal', porRank(53), 'da declaração de discriminação das frações ideais do terreno', 'art. 32, alínea "i", da Lei 4.591/64');
+    add('vagas', G1, 'Declaração de vagas de garagem', porRank(54), 'da declaração de vagas de garagem');
+    add('cndt', G2, 'CNDT (trabalhista)', porCert('TRAB'), 'da Certidão Negativa de Débitos Trabalhistas (CNDT) em nome da incorporadora', fundB);
+    add('sefaz', G2, 'Certidão estadual (SEFAZ-GO)', porCert('SEFAZ'), 'da certidão negativa de débitos estaduais (SEFAZ-GO) em nome da incorporadora', fundB);
+    add('civel', G2, 'Certidão cível (TJGO)', porCert('CIV'), 'da certidão de ações cíveis do Tribunal de Justiça do Estado de Goiás em nome da incorporadora', fundB);
+    add('criminal', G2, 'Certidão criminal (TJGO)', porCert('CRIM'), 'da certidão de ações criminais do Tribunal de Justiça do Estado de Goiás em nome da incorporadora', fundB);
+    if (uf === 'DF') {
+      add('tjdft', G2, 'Certidão do TJDFT (sede no Distrito Federal)', porCert('TJDFT'), 'da certidão de distribuição do Tribunal de Justiça do Distrito Federal e Territórios em nome da incorporadora', fundB);
+      add('protdf', G2, 'Certidão de protesto da sede (DF)', porCert('PROTDF'), 'da certidão de protesto da sede da incorporadora, emitida pela Central de Certidões de Protesto do Distrito Federal', fundB);
+    }
+    add('prot', G2, uf === 'DF' ? 'Certidão de protesto do município (desta comarca)' : 'Certidão de protesto (desta comarca)', porCert('PROT'),
+      'da Certidão de protesto emitida pelo cartório de protesto desta comarca, sendo aceita a original ou eletrônica passível de validação junto ao site https://validar.iti.gov.br/', fundB);
+    add('simpl', G2, 'Certidão simplificada (Junta Comercial)', porCert('SIMPL'), 'da Certidão Simplificada da Junta Comercial em nome da incorporadora, emitida nos últimos 30 dias');
+    add('contrato', G3, 'Contrato social', lista.filter(x => !x.cert && x.rank === 120), 'do contrato social e suas alterações');
+    add('pessoais', G3, 'Documentos pessoais do representante', porRank(130), 'dos documentos pessoais do representante da incorporadora');
+    add('memorial', G4, 'Memorial descritivo', porRank(140), 'do memorial descritivo', 'art. 32, alínea "g", da Lei 4.591/64');
+    add('quadros', G4, 'Quadros da NBR 12.721', porRank(150), 'dos Quadros da NBR 12.721', 'art. 32, alíneas "e" e "h", da Lei 4.591/64 e NBR 12.721');
+    add('minuta', G4, 'Minuta da futura convenção de condomínio', porRank(160), 'da minuta da futura Convenção de Condomínio', 'art. 32, alínea "j", da Lei 4.591/64');
+    add('projeto', G4, 'Projeto arquitetônico', porRank(170), 'do projeto arquitetônico aprovado', 'art. 32, alínea "d", da Lei 4.591/64');
+    add('patrimonio', G4, 'Requerimento de patrimônio de afetação', porRank(180), 'do requerimento de constituição do patrimônio de afetação');
+    add('termo', G4, 'Termo de adesão ao patrimônio de afetação', porRank(190), 'do termo de adesão ao patrimônio de afetação');
+    const extras = lista.filter(x => x.d.categoria !== 'MATRICULA' && !usados.has(x.d.id))
+      .map(x => ({id:x.d.id, nome:x.d.nome, rotulo:x.cert ? (x.cert.orgao || x.cert.tipo) + (x.cert.pessoa && x.cert.pessoa.nome ? ' · ' + x.cert.pessoa.nome : '') : ''}));
+    const n = s => linhas.filter(l => l.status === s).length;
+    return {linhas, extras, resumo:{total:linhas.length, ok:n('ok'), falta:n('falta'), vencida:n('vencida')}};
+  }
+  return {VERSAO:'1.5.6', exigidosIncorporacao:exigidosIncorporacao, ordemDoc:ordemDoc, lerFichaDocs:lerFichaDocs, textoIlegivel:textoIlegivel, nomeLimpo:nomeLimpo, categoriaPeloNome:categoriaPeloNome, categoriaPeloTexto:categoriaPeloTexto, onlyDigits:onlyDigits, todayISO:todayISO, parseBR:parseBR, fmt:fmt, fmtDate:fmtDate, brToISO:brToISO, joinE:joinE, extenso:extenso, validCPF:validCPF, validCNPJ:validCNPJ, unitShort:unitShort, fiOf:fiOf, compararRT:compararRT, somarDias:somarDias, calcInc:calcInc, auditoria:auditoria, lerMatricula:lerMatricula, cruzarMatricula:cruzarMatricula, perfilTexto:perfilTexto, lerQuadrosNBR:lerQuadrosNBR, conferirQuadrosLidos:conferirQuadrosLidos, lerQuadroIII:lerQuadroIII, lerComposicoes:lerComposicoes, chaveComposicao:chaveComposicao, lerCertidao:lerCertidao, linhasDePalavras:linhasDePalavras, criarAnonimizador:criarAnonimizador, anonimizarObjeto:anonimizarObjeto};
 })();
 if (typeof module !== 'undefined') module.exports = Motor;

@@ -1,6 +1,6 @@
 /* Qualificador CRCO — js/navegacao.js: etapas (abas) e troca de etapa */
 'use strict';
-(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/navegacao.js'] = '1.5.5';
+(window.QUAL_ARQ = window.QUAL_ARQ || {})['js/navegacao.js'] = '1.5.6';
 const STEPS = [
   {k:'ged', t:'Documentos', hint:'Organize as páginas em documentos do GED.'},
   {k:'conf', t:'Conferência', hint:'Confira os dados lado a lado com o documento de origem.'},
@@ -39,10 +39,12 @@ function renderCaseStrip(){
   const campos = CAMPOS.filter(f => !f.inc || inc), conf = campos.filter(f => S.ok['c:' + f.k]).length, vazios = campos.filter(f => !String(S.campos[f.k] || '').trim()).length;
   const venc = S.certidoes.filter(c => c.validade && c.validade < ref).length, semData = S.certidoes.filter(c => !c.emissao || !c.validade).length;
   const repet = Object.values(certDuplicadas()).filter(x => !x.maisNova).length;
+  const rx = inc && S.docs.length ? exigidosDoCaso().resumo : null;
   const itens = [
     ['ged', 'Documentos', String(S.docs.length), S.docs.length ? '' : 'warn'],
     ['conf', 'Ficha', conf + ' de ' + campos.length + ' conferidos' + (vazios ? ' · ' + vazios + ' vazio(s)' : ''), vazios ? 'warn' : (conf === campos.length ? 'ok' : '')],
     ['conf', 'Certidões', String(S.certidoes.length) + (venc ? ' · ' + venc + ' vencida(s)' : '') + (semData ? ' · ' + semData + ' sem data' : '') + (repet ? ' · ' + repet + ' repetida(s)' : ''), (venc || semData || repet) ? 'warn' : (S.certidoes.length ? 'ok' : '')],
+    ...(rx ? [['check', 'Exigidos', rx.ok + ' de ' + rx.total + (rx.falta ? ' · faltam ' + rx.falta : '') + (rx.vencida ? ' · ' + rx.vencida + ' vencida(s)' : ''), (rx.falta || rx.vencida) ? 'warn' : 'ok']] : []),
     ['nota', 'Exigências', String(S.exig.length), '']
   ];
   el.innerHTML = itens.map(([k, t, v, c]) => '<button type="button" class="cs ' + c + '" data-go="' + k + '"><span class="cs-t">' + t + '</span><span class="cs-v">' + esc(v) + '</span></button>').join('');

@@ -352,3 +352,44 @@ test('lerCertidao: protesto do DF com selo do TJDFT impresso continua sendo prot
   const r = M.lerCertidao('EMPRESA PROTESTO DF', 'CERTIDÃO UNIFICADA DE PROTESTO Distrito Federal NADA CONSTA Selo Digital: TJDFT20260410006596LTLX. Para consultar o selo, acesse www.tjdft.jus.br Emitida às 09:09:49 em 18/11/2026');
   assert.equal(r.tipo, 'PROTDF'); assert.equal(r.emissao, '2026-11-18');
 });
+
+/* ---- Documentos exigidos na incorporação conferidos contra o GED (nomes e dados neutros) ---- */
+const CERT_TXT = {
+  CNDT: 'CERTIDÃO NEGATIVA DE DÉBITOS TRABALHISTAS Nome: EXEMPLO CONSTRUTORA LTDA (MATRIZ E FILIAIS) CNPJ: ' + CNPJ_T + ' Expedição: 09/11/2026, às 16:46:16 Validade: 08/05/2027 - 180 dias',
+  SEFAZ: 'ESTADO DE GOIAS SECRETARIA DE ESTADO DA ECONOMIA CERTIDAO DE DEBITO INSCRITO EM DIVIDA ATIVA - NEGATIVA CNPJ ' + CNPJ_T + ' Certidao VALIDA POR 120 DIAS LOCAL E DATA: GOIANIA, 9 NOVEMBRO DE 2026',
+  PROTDF: 'CENTRAL DE CERTIDÕES DE PROTESTO DO DF CERTIDÃO UNIFICADA DE PROTESTO CNPJ: ' + CNPJ_T + ' NADA CONSTA Emitida às 09:09:49 em 18/11/2026',
+  TJDFT: 'TRIBUNAL DE JUSTIÇA DO DISTRITO FEDERAL E DOS TERRITÓRIOS CERTIDÃO NEGATIVA DE DISTRIBUIÇÃO NADA CONSTA contra o nome por extenso e CPF/CNPJ de: EXEMPLO CONSTRUTORA LTDA ' + CNPJ_T + ' Emitida gratuitamente pela internet em: 25/11/2026 *** VÁLIDA POR 30 (TRINTA) DIAS ***'
+};
+const docEx = (id, nome, categoria, texto) => ({id, nome, categoria, texto: texto || ''});
+test('exigidosIncorporacao: o que está na pasta, o que falta e o que sobra (sede no DF)', () => {
+  const docs = [
+    docEx('1', 'REQUERIMENTO EXEMPLO', 'OUTROS'), docEx('2', 'ART EXEMPLO', 'OUTROS'), docEx('3', 'ALVARA EXEMPLO', 'OUTROS'),
+    docEx('4', 'Declaracao Prazo de Carencia', 'DECLARACAO'), docEx('5', 'Discriminacao das Fracoes Ideais', 'DECLARACAO'),
+    docEx('6', 'EMPRESA TRABALHISTA', 'CERTIDAO', CERT_TXT.CNDT), docEx('7', 'EMPRESA SEFAZ GO', 'CERTIDAO', CERT_TXT.SEFAZ),
+    docEx('8', 'EMPRESA PROTESTO DF', 'CERTIDAO', CERT_TXT.PROTDF), docEx('9', 'certidao', 'CERTIDAO', CERT_TXT.TJDFT),
+    docEx('10', 'MEMORIAL DESCRITIVO', 'MEMORIAL'), docEx('11', 'QUADRO NBR', 'OUTROS'), docEx('12', 'PROJETO APROVADO', 'PROJETO'),
+    docEx('13', 'EMPRESA PGFN', 'CERTIDAO', 'MINISTÉRIO DA FAZENDA Procuradoria-Geral da Fazenda Nacional CERTIDÃO NEGATIVA Emitida às 16:03:09 do dia 09/11/2026. Válida até 08/05/2027.'),
+    docEx('0', 'Matrícula 1', 'MATRICULA')
+  ];
+  const r = M.exigidosIncorporacao(docs, {incCnpj: CNPJ_T, incSede: 'QE 1, Bairro X, Brasília-DF', ref: '2026-11-25'});
+  const st = id => r.linhas.find(l => l.id === id);
+  for (const id of ['req', 'art', 'alvara', 'carencia', 'fracao', 'cndt', 'sefaz', 'protdf', 'tjdft', 'memorial', 'quadros', 'projeto']) assert.equal(st(id).status, 'ok', id);
+  for (const id of ['pmcmv', 'quota', 'vagas', 'civel', 'criminal', 'prot', 'simpl', 'contrato', 'pessoais', 'minuta', 'patrimonio', 'termo']) assert.equal(st(id).status, 'falta', id);
+  assert.equal(st('prot').rotulo, 'Certidão de protesto do município (desta comarca)');
+  assert.ok(/indispensável|comarca/.test(st('prot').texto) && st('prot').fund === 'art. 32, alínea "b", da Lei 4.591/64');
+  assert.deepEqual(r.resumo, {total: 24, ok: 12, falta: 12, vencida: 0});
+  assert.deepEqual(r.extras.map(e => e.id), ['13']);                  /* PGFN não consta na lista: aparece como extra */
+  assert.equal(st('cndt').obs, 'válida até 08/05/2027');
+  assert.equal(st('req').docIds[0], '1');
+});
+test('exigidosIncorporacao: sede em Goiás não pede as certidões do DF; certidão vencida; outra pessoa não conta', () => {
+  const venc = CERT_TXT.SEFAZ.replace('9 NOVEMBRO DE 2026', '9 JANEIRO DE 2026').replace('VALIDA POR 120 DIAS', 'VALIDA POR 30 DIAS');
+  const outra = CERT_TXT.CNDT.replace(CNPJ_T, '04.252.011/0001-10').replace('EXEMPLO CONSTRUTORA LTDA', 'OUTRA EMPRESA LTDA');
+  const r = M.exigidosIncorporacao([docEx('1', 'EMPRESA SEFAZ GO', 'CERTIDAO', venc), docEx('2', 'OUTRA TRABALHISTA', 'CERTIDAO', outra)], {incCnpj: CNPJ_T, incSede: 'Quadra 5, Cidade Ocidental/GO', ref: '2026-11-25'});
+  const st = id => r.linhas.find(l => l.id === id);
+  assert.equal(st('tjdft'), undefined); assert.equal(st('protdf'), undefined);
+  assert.equal(st('prot').rotulo, 'Certidão de protesto (desta comarca)');
+  assert.equal(st('sefaz').status, 'vencida'); assert.equal(st('sefaz').obs, 'venceu em 08/02/2026');
+  assert.equal(st('cndt').status, 'falta');                          /* a CNDT é de outra empresa */
+  assert.equal(r.resumo.total, 22);
+});
